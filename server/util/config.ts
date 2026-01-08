@@ -18,6 +18,7 @@ class Config {
   MFA_REQUIRED: boolean = false
 
   APP_COLOR = '#906bc7'
+  APP_FONT = ''
 
   // Database config
   DB_ADAPTER = 'postgres'
@@ -222,6 +223,7 @@ if (appConfig.SESSION_DOMAIN) {
     logger.debug(`SESSION_DOMAIN: '${appConfig.SESSION_DOMAIN}'`)
   }
 }
+logger.debug(`Session Domain: '${String(getSessionDomain())}'`)
 
 // check DEFAULT_REDIRECT is valid if set
 if (appConfig.DEFAULT_REDIRECT && !URL.parse(appConfig.DEFAULT_REDIRECT)) {
@@ -248,6 +250,15 @@ if (appConfig.PASSWORD_STRENGTH < 0 || appConfig.PASSWORD_STRENGTH > 4) {
 // If EMAIL_VALIDATION is unset, give it a default value
 if (appConfig.EMAIL_VERIFICATION == null) {
   appConfig.EMAIL_VERIFICATION = !!appConfig.SMTP_HOST
+}
+
+// Make sure APP_FONT, if set, is in the proper format
+appConfig.APP_FONT = appConfig.APP_FONT.trim()
+if (appConfig.APP_FONT) {
+  if (!appConfig.APP_FONT.endsWith(',')) {
+    appConfig.APP_FONT += ','
+  }
+  appConfig.APP_FONT += ' '
 }
 
 //

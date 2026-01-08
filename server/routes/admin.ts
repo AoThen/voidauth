@@ -35,7 +35,6 @@ import type { PasswordResetCreate } from '@shared/api-request/admin/PasswordRese
 import type { EmailLog } from '@shared/db/EmailLog'
 import appConfig from '../util/config'
 import type { EmailsResponse } from '@shared/api-response/admin/EmailsResponse'
-import DOMPurify from 'isomorphic-dompurify'
 import type { OIDCPayload } from '@shared/db/OIDCPayload'
 import type { ClientResponse } from '@shared/api-response/ClientResponse'
 import { logger } from '../util/logger'
@@ -211,7 +210,7 @@ adminRouter.post('/client',
     }
 
     if (clientUpsert.client_secret == null && clientUpsert.token_endpoint_auth_method !== 'none') {
-      res.status(400).send({ message: `client_secret is required when token_endpoint_auth_method is not 'none'.` })
+      res.status(400).send({ message: `client_secret is required when token_endpoint_auth_method is not 'None (Public)'.` })
       return
     }
 
@@ -260,7 +259,7 @@ adminRouter.patch('/client',
     }
 
     if (clientUpsert.client_secret == null && clientUpsert.token_endpoint_auth_method !== 'none') {
-      res.status(400).send({ message: `client_secret is required when token_endpoint_auth_method is not 'none'.` })
+      res.status(400).send({ message: `client_secret is required when token_endpoint_auth_method is not 'None (Public)'.` })
       return
     }
 
@@ -1163,8 +1162,8 @@ adminRouter.get('/emails',
     const emails = (await emailsModel.clone().select().offset(page * pageSize).limit(pageSize)).map((e) => {
       return {
         ...e,
-        body: e.body ? DOMPurify.sanitize(e.body) : e.body,
-        subject: DOMPurify.sanitize(e.subject),
+        body: e.body,
+        subject: e.subject,
       }
     })
 
