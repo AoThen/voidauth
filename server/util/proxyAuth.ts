@@ -8,6 +8,7 @@ import { ADMIN_GROUP } from '@shared/constants'
 import { loginFactors } from '@shared/user'
 import { userCanLogin } from './auth'
 import { getSession } from '../oidc/provider'
+import { logger } from './logger'
 
 // proxy auth common
 export async function proxyAuth(url: URL, method: 'forward-auth' | 'auth-request', req: Request, res: Response) {
@@ -92,8 +93,31 @@ export async function proxyAuth(url: URL, method: 'forward-auth' | 'auth-request
 
   // Check user groups for access if not an admin
   if (!user.groups.some(g => g.name === ADMIN_GROUP)) {
-    if (!match || (match.groups.length && !user.groups.some(g => match.groups.includes(g.name)))) {
-      res.sendStatus(403)
+    if (!match) {
+      const logInfo = {
+        reason: 'no_domain_match',
+        url: url.href,
+        urlDomain: formattedUrl,
+      }
+      logger.debug(`proxyauth forbidden: ${JSON.stringify(logInfo)}`)
+      res.status(403).send({
+        status: 'Forbidden',
+        reason: logInfo.reason,
+      })
+      return
+    } else if (match.groups.length && !user.groups.some(g => match.groups.includes(g.name))) {
+      const logInfo = {
+        reason: 'user_group_missing',
+        url: url.href,
+        urlDomain: formattedUrl,
+        domain: match.domain,
+        domainGroups: match.groups,
+      }
+      logger.debug(`proxyauth forbidden: ${JSON.stringify(logInfo)}`)
+      res.status(403).send({
+        status: 'Forbidden',
+        reason: logInfo.reason,
+      })
       return
     }
   }
@@ -130,5 +154,6 @@ export async function proxyAuth(url: URL, method: 'forward-auth' | 'auth-request
       }
     }
   }
-  res.send()
+  logger.debug(`proxyauth access granted${match ? ` to domain: ${match.domain}` : ''}`)
+  res.status(200).send()
 }
