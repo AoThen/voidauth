@@ -16,19 +16,30 @@ export class LoginBruteForceProtection {
     private blockDurationMinutes: number = appConfig.LOGIN_BLOCK_DURATION,
   ) {}
 
-  getClientIP(req: { headers: { 'x-forwarded-for'?: string | string[], 'cf-connecting-ip'?: string | string[], 'x-real-ip'?: string | string[] }, socket?: { remoteAddress?: string } }): string {
+  getClientIP(
+    req: {
+      headers: {
+        'x-forwarded-for'?: string | string[]
+        'cf-connecting-ip'?: string | string[]
+        'x-real-ip'?: string | string[]
+      }
+      socket?: { remoteAddress?: string }
+    },
+  ): string {
     const forwarded = req.headers['x-forwarded-for']
     if (forwarded) {
       const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0]
-      return (ips as string)?.trim() || 'unknown'
+      return ips.trim() || 'unknown'
     }
     const cfIP = req.headers['cf-connecting-ip']
     if (cfIP) {
-      return (Array.isArray(cfIP) ? cfIP[0] : (cfIP as string)) || 'unknown'
+      const ip = Array.isArray(cfIP) ? cfIP[0] : cfIP
+      return ip || 'unknown'
     }
     const realIP = req.headers['x-real-ip']
     if (realIP) {
-      return (Array.isArray(realIP) ? realIP[0] : (realIP as string)) || 'unknown'
+      const ip = Array.isArray(realIP) ? realIP[0] : realIP
+      return ip || 'unknown'
     }
     return req.socket?.remoteAddress?.replace('::ffff:', '') || 'unknown'
   }
@@ -61,7 +72,10 @@ export class LoginBruteForceProtection {
     return Math.max(0, remaining)
   }
 
-  recordFailedAttempt(input: string, ip: string): { blocked: boolean; remainingAttempts: number; blockTimeMinutes?: number } {
+  recordFailedAttempt(
+    input: string,
+    ip: string,
+  ): { blocked: boolean, remainingAttempts: number, blockTimeMinutes?: number } {
     const identifier = this.getIdentifier(input, ip)
     let attempt = this.attempts.get(identifier)
     const now = new Date()
@@ -85,7 +99,10 @@ export class LoginBruteForceProtection {
       attempt.blockedUntil = new Date(now.getTime() + this.blockDurationMinutes * 60 * 1000)
       this.attempts.set(identifier, attempt)
 
-      logger.info(`Login blocked for ${input} (IP: ${ip}) after ${attempt.count} failed attempts. Blocked until ${attempt.blockedUntil.toISOString()}`)
+      logger.info(
+        `Login blocked for ${input} (IP: ${ip}) after ${String(attempt.count)} failed attempts. `
+        + `Blocked until ${attempt.blockedUntil.toISOString()}`,
+      )
 
       return {
         blocked: true,
@@ -99,7 +116,9 @@ export class LoginBruteForceProtection {
     const remainingAttempts = this.maxAttempts - attempt.count
 
     if (attempt.count >= this.maxAttempts - 3) {
-      logger.info(`Failed login attempt ${attempt.count}/${this.maxAttempts} for ${input} (IP: ${ip})`)
+      logger.info(
+        `Failed login attempt ${String(attempt.count)}/${String(this.maxAttempts)} for ${input} (IP: ${ip})`,
+      )
     }
 
     return {
@@ -135,7 +154,7 @@ export class LoginBruteForceProtection {
     return cleaned
   }
 
-  getStats(): { totalBlocked: number; currentlyBlocked: number } {
+  getStats(): { totalBlocked: number, currentlyBlocked: number } {
     let totalBlocked = 0
     let currentlyBlocked = 0
     const now = new Date()
@@ -156,6 +175,6 @@ export const bruteForceProtection = new LoginBruteForceProtection()
 setInterval(() => {
   const cleaned = bruteForceProtection.cleanup()
   if (cleaned > 0) {
-    logger.debug(`Cleaned up ${cleaned} expired login attempts`)
+    logger.debug(`Cleaned up ${String(cleaned)} expired login attempts`)
   }
 }, 5 * 60 * 1000)

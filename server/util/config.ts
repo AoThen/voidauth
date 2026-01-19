@@ -140,7 +140,7 @@ function stringOnly(value: unknown): string | null {
 }
 
 function posInt(value: unknown): number | null {
-  return typeof value === 'string' && Number.isInteger(Number.parseFloat(value)) && Number.parseInt(value) >0
+  return typeof value === 'string' && Number.isInteger(Number.parseFloat(value)) && Number.parseInt(value) > 0
     ? Number.parseInt(value)
     : null
 }

@@ -130,7 +130,7 @@ export async function createInitialAdmin() {
     const useEnvPassword = process.env.ADMIN_INITIAL_PASSWORD && process.env.ADMIN_INITIAL_PASSWORD.length >= 8
 
     if (useEnvPassword) {
-      password = process.env.ADMIN_INITIAL_PASSWORD!
+      password = process.env.ADMIN_INITIAL_PASSWORD as string
     } else {
       password = generate({
         length: 32,

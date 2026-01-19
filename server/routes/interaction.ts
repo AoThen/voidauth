@@ -728,13 +728,13 @@ router.post('/login',
 
     const { input, password, remember } = validatorData<LoginUser>(req)
 
-    const ip = bruteForceProtection.getClientIP(req as any)
+    const ip = bruteForceProtection.getClientIP(req)
     const identifier = bruteForceProtection.getIdentifier(input, ip)
 
     if (bruteForceProtection.isBlocked(identifier)) {
       const remainingMinutes = bruteForceProtection.getRemainingBlockTime(identifier)
       res.status(429).send({
-        message: `Too many failed login attempts. Please try again in ${remainingMinutes} minutes.`,
+        message: `Too many failed login attempts. Please try again in ${String(remainingMinutes)} minutes.`,
         remainingMinutes,
       })
       return
@@ -745,7 +745,7 @@ router.post('/login',
       const result = bruteForceProtection.recordFailedAttempt(input, ip)
       if (result.blocked) {
         res.status(429).send({
-          message: `Too many failed login attempts. Please try again in ${result.blockTimeMinutes} minutes.`,
+          message: `Too many failed login attempts. Please try again in ${String(result.blockTimeMinutes)} minutes.`,
           remainingMinutes: result.blockTimeMinutes,
         })
         return
@@ -762,7 +762,7 @@ router.post('/login',
       const result = bruteForceProtection.recordFailedAttempt(input, ip)
       if (result.blocked) {
         res.status(429).send({
-          message: `Too many failed login attempts. Please try again in ${result.blockTimeMinutes} minutes.`,
+          message: `Too many failed login attempts. Please try again in ${String(result.blockTimeMinutes)} minutes.`,
           remainingMinutes: result.blockTimeMinutes,
         })
         return
