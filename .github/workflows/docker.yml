@@ -51,7 +51,7 @@ jobs:
           platforms: linux/amd64  #,linux/arm64 # 指定架构：x86_64 和 ARM64
           push: true
           tags: |
-            ghcr.io/${{ env.LOWER_NAME }}:latest
+            ghcr.io/${{ env.LOWER_NAME }}:beta
 
       - uses: actions/delete-package-versions@v5
         with: 
