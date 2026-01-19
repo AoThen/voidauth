@@ -1,0 +1,107 @@
+{
+  "Language": "Language",
+  "common": {
+    "login": "Login",
+    "logout": "Logout",
+    "signUp": "Sign Up",
+    "contact": "Contact",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "or": "or",
+    "rememberMe": "Remember Me"
+  },
+  "login": {
+    "title": "Login",
+    "emailOrUsername": "Email or Username",
+    "password": "Password",
+    "forgotPassword": "Forgot Password",
+    "login": "Login",
+    "passkey": "Passkey",
+    "signUp": "Sign Up",
+    "tooManyAttempts": "Too many failed login attempts. Please try again in {minutes} minutes.",
+    "invalidCredentials": "Invalid username or password."
+  },
+  "register": {
+    "title": "Sign Up",
+    "acceptInvitation": "Accept Invitation",
+    "username": "Username",
+    "email": "Email",
+    "name": "Name",
+    "password": "Password",
+    "signUp": "Sign Up",
+    "signUpWithPasskey": "Sign Up With Passkey",
+    "login": "Login"
+  },
+  "forgotPassword": {
+    "title": "Forgot Password",
+    "email": "Email",
+    "sendResetLink": "Send Reset Link",
+    "backToLogin": "Back to Login"
+  },
+  "resetPassword": {
+    "title": "Reset Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "resetPassword": "Reset Password"
+  },
+  "mfa": {
+    "title": "Two-Factor Authentication",
+    "enterCode": "Enter the code from your authenticator app",
+    "verify": "Verify",
+    "rememberDevice": "Remember this device"
+  },
+  "verifyEmail": {
+    "title": "Verify Email",
+    "checkEmail": "Please check your email for a verification link",
+    "resend": "Resend Verification Email"
+  },
+  "consent": {
+    "title": "Authorize Access",
+    "authorize": "Authorize",
+    "cancel": "Cancel"
+  },
+  "home": {
+    "welcome": "Welcome",
+    "loggedOut": "You are logged out"
+  },
+  "admin": {
+    "title": "Admin",
+    "users": "Users",
+    "groups": "Groups",
+    "clients": "Clients",
+    "domains": "Domains",
+    "invitations": "Invitations",
+    "passwordResets": "Password Resets",
+    "emails": "Emails",
+    "add": "Add",
+    "create": "Create",
+    "update": "Update"
+  },
+  "Approval Required": "Approval Required",
+  "You need administrator approval before you can log in. Please wait or contact an Admin for help.": "You need administrator approval before you can log in. Please wait or contact an Admin for help.",
+  "Do you want to sign in to": "Do you want to sign in to",
+  "After you sign in, you will be sent to": "After you sign in, you will be sent to",
+  "Use": "Use",
+  "Register Passkey": "Register Passkey",
+  "Send": "Send",
+  "Create": "Create",
+  "Again": "Again",
+  "Enable": "Enable",
+  "Verification Email Sent": "Verification Email Sent",
+  "Email Verification Required": "Email Verification Required",
+  "Logout": "Logout",
+  "Send Verification": "Send Verification",
+  "Verifying Email...": "Verifying Email...",
+  "Email Could Not Be Verified :(": "Email Could Not Be Verified :(",
+  "Sending New Verification...": "Sending New Verification...",
+  "Email Verification Could Not Be Sent :(": "Email Verification Could Not Be Sent :(",
+  "Confirm": "Confirm",
+  "Sign In": "Sign In"
+}

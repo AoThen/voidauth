@@ -20,6 +20,7 @@ import { ClipboardModule } from '@angular/cdk/clipboard'
 import { MatProgressBarModule } from '@angular/material/progress-bar'
 import { MatExpansionModule } from '@angular/material/expansion'
 import { MatDialogModule } from '@angular/material/dialog'
+import { MatSnackBarModule } from '@angular/material/snack-bar'
 import { NgxSpinnerModule } from 'ngx-spinner'
 
 @NgModule({
@@ -46,6 +47,7 @@ import { NgxSpinnerModule } from 'ngx-spinner'
     MatProgressBarModule,
     MatExpansionModule,
     MatDialogModule,
+    MatSnackBarModule,
   ],
   providers: [
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },

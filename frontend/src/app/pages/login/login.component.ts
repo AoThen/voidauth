@@ -12,6 +12,7 @@ import { SpinnerService } from '../../services/spinner.service'
 import { PasskeyService, type PasskeySupport } from '../../services/passkey.service'
 import { WebAuthnAbortService } from '@simplewebauthn/browser'
 import { TextDividerComponent } from '../../components/text-divider/text-divider.component'
+import { TranslateModule } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-login',
@@ -23,6 +24,7 @@ import { TextDividerComponent } from '../../components/text-divider/text-divider
     ValidationErrorPipe,
     RouterLink,
     TextDividerComponent,
+    TranslateModule,
   ],
 })
 export class LoginComponent implements OnInit, OnDestroy {
@@ -134,6 +136,11 @@ export class LoginComponent implements OnInit, OnDestroy {
           shownError = 'Invalid username or password.'
         } else if (status === 404) {
           shownError = 'User not found.'
+        } else if (status === 429) {
+          shownError = e.error?.message || 'Too many failed login attempts. Please try again later.'
+          if (e.error?.remainingMinutes) {
+            shownError += ` (${e.error.remainingMinutes} minutes remaining)`
+          }
         }
 
         shownError ??= e.error?.message

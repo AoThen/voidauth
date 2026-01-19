@@ -4,19 +4,21 @@ import { routes } from './app.routes'
 import { provideHttpClient, withInterceptors, type HttpInterceptorFn } from '@angular/common/http'
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async'
 import { getBaseHrefPath } from './services/config.service'
+import { TranslateLoader, TranslateModule } from '@ngx-translate/core'
+import { TranslateHttpLoader } from '@ngx-translate/http-loader'
+import { HttpClient } from '@angular/common/http'
+
+export function HttpLoaderFactory(http: HttpClient) {
+  return new TranslateHttpLoader(http, './assets/i18n/', '.json')
+}
 
 const baseHrefInterceptor: HttpInterceptorFn = (req, next) => {
-  // Skip external URLs
   if (req.url.startsWith('http://') || req.url.startsWith('https://')) {
     return next(req)
   }
-
-  // Clone and modify request
   const modifiedReq = req.clone({
     url: `${getBaseHrefPath()}${req.url}`,
   })
-
-  // Proceed with modified request
   return next(modifiedReq)
 }
 
@@ -27,7 +29,13 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(
       withInterceptors([baseHrefInterceptor]),
     ),
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    TranslateModule.forRoot({
+      loader: {
+        provide: TranslateLoader,
+        useFactory: HttpLoaderFactory,
+        deps: [HttpClient],
+      },
+    }),
     provideAnimationsAsync(),
   ],
 }

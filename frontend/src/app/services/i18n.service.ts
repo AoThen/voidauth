@@ -1,0 +1,28 @@
+import { Injectable } from '@angular/core'
+import { TranslateService } from '@ngx-translate/core'
+
+@Injectable({
+  providedIn: 'root',
+})
+export class I18nService {
+  constructor(private translate: TranslateService) {
+    this.translate.addLangs(['en', 'zh'])
+    const savedLang = localStorage.getItem('lang')
+    const browserLang = this.translate.getBrowserLang() ?? 'en'
+    const defaultLang = savedLang || (['en', 'zh'].includes(browserLang) ? browserLang : 'en')
+    this.translate.use(defaultLang)
+  }
+
+  setLang(lang: 'en' | 'zh') {
+    this.translate.use(lang)
+    localStorage.setItem('lang', lang)
+  }
+
+  getLang(): 'en' | 'zh' {
+    return (localStorage.getItem('lang') as 'en' | 'zh') || 'en'
+  }
+
+  instant(key: string, params?: Record<string, unknown>) {
+    return this.translate.instant(key, params)
+  }
+}

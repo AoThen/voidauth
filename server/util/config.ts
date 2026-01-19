@@ -47,6 +47,14 @@ class Config {
   CONTACT_EMAIL?: string
   ADMIN_EMAILS?: number
 
+  // Brute force protection
+  LOGIN_MAX_ATTEMPTS = 10
+  LOGIN_BLOCK_DURATION = 15
+
+  // Initial admin password (optional, min 8 characters)
+  // If set, will be used as the initial admin password on first deployment
+  ADMIN_INITIAL_PASSWORD?: string
+
   // SMTP
   SMTP_HOST?: string
   SMTP_FROM?: string
@@ -65,6 +73,8 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SMTP_PORT':
     case 'PASSWORD_STRENGTH':
     case 'API_RATELIMIT':
+    case 'LOGIN_MAX_ATTEMPTS':
+    case 'LOGIN_BLOCK_DURATION':
       appConfig[key] = posInt(value) ?? appConfig[key]
       break
 
@@ -128,7 +138,7 @@ function stringOnly(value: unknown): string | null {
 }
 
 function posInt(value: unknown): number | null {
-  return typeof value === 'string' && Number.isInteger(Number.parseFloat(value)) && Number.parseInt(value) > 0
+  return typeof value === 'string' && Number.isInteger(Number.parseFloat(value)) && Number.parseInt(value) >0
     ? Number.parseInt(value)
     : null
 }
@@ -151,7 +161,7 @@ function stringDuration(durationStr: unknown) {
     daily: 86400,
   } as const
 
-  // Normalize the input string
+  // Normalize input string
   const normalized = durationStr.toLowerCase().trim()
 
   // Check for direct frequency matches
@@ -216,7 +226,7 @@ if ('listed' in pslParsedAppUrl && !pslParsedAppUrl.listed) {
 if (appConfig.SESSION_DOMAIN) {
   const dotSD = (!appConfig.SESSION_DOMAIN.startsWith('.') ? '.' : '') + appConfig.SESSION_DOMAIN
   if (appUrl().hostname !== appConfig.SESSION_DOMAIN && !appUrl().hostname.endsWith(dotSD)) {
-    logger.error('If SESSION_DOMAIN is set, the APP_URL hostname must end with the SESSION_DOMAIN.')
+    logger.error('If SESSION_DOMAIN is set, APP_URL hostname must end with SESSION_DOMAIN.')
     exit(1)
   }
   if (appConfig.SESSION_DOMAIN !== getBaseDomain(appUrl().hostname)) {
@@ -247,12 +257,18 @@ if (appConfig.PASSWORD_STRENGTH < 0 || appConfig.PASSWORD_STRENGTH > 4) {
   exit(1)
 }
 
+// check that ADMIN_INITIAL_PASSWORD meets minimum length if set
+if (appConfig.ADMIN_INITIAL_PASSWORD && appConfig.ADMIN_INITIAL_PASSWORD.length < 8) {
+  logger.error('ADMIN_INITIAL_PASSWORD must be at least 8 characters if set.')
+  exit(1)
+}
+
 // If EMAIL_VALIDATION is unset, give it a default value
 if (appConfig.EMAIL_VERIFICATION == null) {
   appConfig.EMAIL_VERIFICATION = !!appConfig.SMTP_HOST
 }
 
-// Make sure APP_FONT, if set, is in the proper format
+// Make sure APP_FONT, if set, is in proper format
 appConfig.APP_FONT = appConfig.APP_FONT.trim()
 if (appConfig.APP_FONT) {
   if (!appConfig.APP_FONT.endsWith(',')) {

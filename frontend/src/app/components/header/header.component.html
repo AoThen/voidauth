@@ -12,11 +12,14 @@
   <span class="example-spacer"></span>
 
   <span class="right-actions">
+    <button mat-icon-button (click)="toggleLanguage()" [matTooltip]="'Language' | translate">
+      <mat-icon fontSet="material-icons-round">language</mat-icon>
+    </button>
     <app-theme-toggle></app-theme-toggle>
     <span>
       @if (!user?.canLogin && !location.pathname.endsWith("/login") && !location.pathname.endsWith("/mfa")) {
         <span>
-          <a mat-flat-button routerLink="/login">Login</a>
+          <a mat-flat-button routerLink="/login">{{ "common.login" | translate }}</a>
         </span>
       } @else if (!location.pathname.endsWith("/login") && !location.pathname.endsWith("/register")) {
         <button mat-icon-button (click)="toggleSidenav.emit()">

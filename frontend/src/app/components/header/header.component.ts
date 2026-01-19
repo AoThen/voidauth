@@ -8,6 +8,9 @@ import { ConfigService } from '../../services/config.service'
 import { SpinnerService } from '../../services/spinner.service'
 import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { LogoComponent } from './logo.component'
+import { I18nService } from '../../services/i18n.service'
+import { TranslateModule } from '@ngx-translate/core'
+import { MatSnackBar } from '@angular/material/snack-bar'
 
 @Component({
   selector: 'app-header',
@@ -16,6 +19,7 @@ import { LogoComponent } from './logo.component'
     ThemeToggleComponent,
     RouterLink,
     LogoComponent,
+    TranslateModule,
   ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
@@ -30,6 +34,8 @@ export class HeaderComponent implements OnInit {
   private userService = inject(UserService)
   private configService = inject(ConfigService)
   private spinnerService = inject(SpinnerService)
+  private i18nService = inject(I18nService)
+  private snackBar = inject(MatSnackBar)
 
   async ngOnInit() {
     try {
@@ -41,5 +47,14 @@ export class HeaderComponent implements OnInit {
     } finally {
       this.spinnerService.hide()
     }
+  }
+
+  toggleLanguage() {
+    const currentLang = this.i18nService.getLang()
+    const newLang = currentLang === 'en' ? 'zh' : 'en'
+    this.i18nService.setLang(newLang)
+    this.snackBar.open(`Language switched to ${newLang === 'en' ? 'English' : '中文'}`, 'Close', {
+      duration: 2000,
+    })
   }
 }

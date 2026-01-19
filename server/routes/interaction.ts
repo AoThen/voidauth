@@ -59,6 +59,7 @@ import type { InteractionInfo } from '@shared/api-response/InteractionInfo'
 import { amrFactors, isUnapproved, isUnverified, loginFactors } from '@shared/user'
 import { logger } from '../util/logger'
 import { argon2 } from '../util/argon2id'
+import { bruteForceProtection } from '../util/bruteForceProtection'
 
 const registerUserValidator = {
   username: {
@@ -727,17 +728,53 @@ router.post('/login',
 
     const { input, password, remember } = validatorData<LoginUser>(req)
 
+    const ip = bruteForceProtection.getClientIP(req)
+    const identifier = bruteForceProtection.getIdentifier(input, ip)
+
+    if (bruteForceProtection.isBlocked(identifier)) {
+      const remainingMinutes = bruteForceProtection.getRemainingBlockTime(identifier)
+      res.status(429).send({
+        message: `Too many failed login attempts. Please try again in ${remainingMinutes} minutes.`,
+        remainingMinutes,
+      })
+      return
+    }
+
     const user = await getUserByInput(input)
     if (!user) {
-      res.sendStatus(401)
+      const result = bruteForceProtection.recordFailedAttempt(input, ip)
+      if (result.blocked) {
+        res.status(429).send({
+          message: `Too many failed login attempts. Please try again in ${result.blockTimeMinutes} minutes.`,
+          remainingMinutes: result.blockTimeMinutes,
+        })
+        return
+      }
+      res.status(401).send({
+        message: 'Invalid username or password.',
+        remainingAttempts: result.remainingAttempts,
+      })
       return
     }
 
     // check user password
     if (!await checkPasswordHash(user.id, password)) {
-      res.sendStatus(401)
+      const result = bruteForceProtection.recordFailedAttempt(input, ip)
+      if (result.blocked) {
+        res.status(429).send({
+          message: `Too many failed login attempts. Please try again in ${result.blockTimeMinutes} minutes.`,
+          remainingMinutes: result.blockTimeMinutes,
+        })
+        return
+      }
+      res.status(401).send({
+        message: 'Invalid username or password.',
+        remainingAttempts: result.remainingAttempts,
+      })
       return
     }
+
+    bruteForceProtection.recordSuccessfulAttempt(input, ip)
 
     // check if email verification or approval needed, if not log in
     const redir = await loginResult(req, res, {

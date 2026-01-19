@@ -16,6 +16,7 @@ import { TextDividerComponent } from '../../components/text-divider/text-divider
 import { PasskeyService, type PasskeySupport } from '../../services/passkey.service'
 import { startRegistration, WebAuthnError } from '@simplewebauthn/browser'
 import { UserService } from '../../services/user.service'
+import { TranslateModule } from '@ngx-translate/core'
 @Component({
   selector: 'app-registration',
   templateUrl: './registration.component.html',
@@ -27,6 +28,7 @@ import { UserService } from '../../services/user.service'
     RouterLink,
     NewPasswordInputComponent,
     TextDividerComponent,
+    TranslateModule,
   ],
 })
 export class RegistrationComponent implements OnInit {

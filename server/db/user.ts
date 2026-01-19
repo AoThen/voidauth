@@ -125,10 +125,17 @@ export async function createInitialAdmin() {
   // Check if admin user and group have ever been created.
   const adminCreated = await db().table<Flag>(TABLES.FLAG).select().where({ name: 'ADMIN_CREATED' }).first()
   if (adminCreated?.value?.toLowerCase() !== 'true') {
-    const password = generate({
-      length: 32,
-      numbers: true,
-    })
+    let password: string
+    const useEnvPassword = process.env.ADMIN_INITIAL_PASSWORD && process.env.ADMIN_INITIAL_PASSWORD.length >= 8
+
+    if (useEnvPassword) {
+      password = process.env.ADMIN_INITIAL_PASSWORD
+    } else {
+      password = generate({
+        length: 32,
+        numbers: true,
+      })
+    }
 
     const initialAdminUser: User = {
       id: randomUUID(),
@@ -168,13 +175,7 @@ export async function createInitialAdmin() {
     await db().table<Flag>(TABLES.FLAG).insert({ name: 'ADMIN_CREATED', value: 'true', createdAt: new Date() })
       .onConflict(['name']).merge(['value'])
 
-    console.log('')
-    console.log('')
-    console.log('The following are the initial Admin username and password, use to create your own user.')
-    console.log('These will not be shown again:')
-    console.log('')
-    console.log(initialAdminUser.username)
-    console.log(password)
-    console.log('')
+    logger.info('Initial admin user created. Username: auth_admin')
+    logger.warn('IMPORTANT: Please log in immediately and change the default password!')
   }
 }

@@ -1,13 +1,13 @@
 <mat-card class="form-card">
   <mat-card-header>
-    <mat-card-title> {{ sent ? "Verification Email Sent" : "Email Verification Required" }} </mat-card-title>
+    <mat-card-title> {{ sent ? ("Verification Email Sent" | translate) : ("Email Verification Required" | translate) }} </mat-card-title>
   </mat-card-header>
   <mat-card-content>
     <mat-icon align="center" style="width: 100px; height: 100px; font-size: 100px" fontSet="material-icons-round" matSuffix>mail</mat-icon>
     <mat-card-actions>
-      <a mat-button [href]="host + '/oidc/session/end'">Logout</a>
+      <a mat-button [href]="host + '/oidc/session/end'">{{ "common.logout" | translate }}</a>
       <button mat-flat-button (click)="sendVerification()">
-        {{ sent ? "Send Again" : "Send Verification" }}
+        {{ sent ? ("Send Again" | translate) : ("Send Verification" | translate) }}
       </button>
     </mat-card-actions>
   </mat-card-content>
@@ -16,5 +16,5 @@
 <span style="flex-grow: 1"></span>
 
 @if (config?.contactEmail; as contactEmail) {
-  <a style="margin-top: 48px" mat-button [href]="'mailto:' + contactEmail">Contact</a>
+  <a style="margin-top: 48px" mat-button [href]="'mailto:' + contactEmail">{{ "common.contact" | translate }}</a>
 }

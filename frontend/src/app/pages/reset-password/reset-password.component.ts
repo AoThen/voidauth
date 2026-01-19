@@ -13,6 +13,7 @@ import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { TextDividerComponent } from '../../components/text-divider/text-divider.component'
 import { PasskeyService, type PasskeySupport } from '../../services/passkey.service'
 import { startRegistration, WebAuthnError } from '@simplewebauthn/browser'
+import { TranslateModule } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-reset-password',
@@ -21,6 +22,7 @@ import { startRegistration, WebAuthnError } from '@simplewebauthn/browser'
     ReactiveFormsModule,
     PasswordSetComponent,
     TextDividerComponent,
+    TranslateModule,
   ],
   templateUrl: './reset-password.component.html',
   styleUrl: './reset-password.component.scss',

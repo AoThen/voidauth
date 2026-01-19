@@ -10,12 +10,14 @@ import { ConfigService } from '../../../services/config.service'
 import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { UserService } from '../../../services/user.service'
 import { PasskeyService } from '../../../services/passkey.service'
+import { TranslateModule } from '@ngx-translate/core'
 
 @Component({
   selector: 'app-verify',
   imports: [
     CommonModule,
     MaterialModule,
+    TranslateModule,
   ],
   templateUrl: './verify.component.html',
   styleUrl: './verify.component.scss',
