@@ -11,6 +11,7 @@ import appConfig from '../util/config'
 import type { OIDCPayload } from '@shared/db/OIDCPayload'
 import { hasTOTP } from './totp'
 import { getUserPasskeys } from './passkey'
+import { logger } from '../util/logger.js'
 import { argon2 } from '../util/argon2id'
 
 export async function getUsers(searchTerm?: string): Promise<UserWithAdminIndicator[]> {
@@ -129,7 +130,7 @@ export async function createInitialAdmin() {
     const useEnvPassword = process.env.ADMIN_INITIAL_PASSWORD && process.env.ADMIN_INITIAL_PASSWORD.length >= 8
 
     if (useEnvPassword) {
-      password = process.env.ADMIN_INITIAL_PASSWORD
+      password = process.env.ADMIN_INITIAL_PASSWORD!
     } else {
       password = generate({
         length: 32,
@@ -176,6 +177,6 @@ export async function createInitialAdmin() {
       .onConflict(['name']).merge(['value'])
 
     logger.info('Initial admin user created. Username: auth_admin')
-    logger.warn('IMPORTANT: Please log in immediately and change the default password!')
+    logger.info('IMPORTANT: Please log in immediately and change the default password!')
   }
 }

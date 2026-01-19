@@ -123,7 +123,9 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
 
     // The default case for all string config values
     default:
-      appConfig[key] = stringOnly(value) ?? appConfig[key]
+      if (typeof value === 'string') {
+        appConfig[key] = value
+      }
       break
   }
 }
