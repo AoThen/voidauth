@@ -66,7 +66,7 @@ COPY --chmod=0777 ./migrations ./migrations
 # Serve files and api endpoints
 # Requires a login to dhi.io
 #
-FROM dhi.io/node:24-alpine3.22 AS serve
+FROM node:24-alpine3.22 AS serve
 
 WORKDIR /app
 
