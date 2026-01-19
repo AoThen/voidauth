@@ -1,4 +1,4 @@
-import { type ApplicationConfig, provideZoneChangeDetection } from '@angular/core'
+import { type ApplicationConfig, provideZoneChangeDetection, importProvidersFrom } from '@angular/core'
 import { provideRouter } from '@angular/router'
 import { routes } from './app.routes'
 import { provideHttpClient, withInterceptors, type HttpInterceptorFn } from '@angular/common/http'
@@ -29,13 +29,15 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(
       withInterceptors([baseHrefInterceptor]),
     ),
-    TranslateModule.forRoot({
-      loader: {
-        provide: TranslateLoader,
-        useFactory: HttpLoaderFactory,
-        deps: [HttpClient],
-      },
-    }),
+    importProvidersFrom(
+      TranslateModule.forRoot({
+        loader: {
+          provide: TranslateLoader,
+          useFactory: HttpLoaderFactory,
+          deps: [HttpClient],
+        },
+      }),
+    ),
     provideAnimationsAsync(),
   ],
 }
