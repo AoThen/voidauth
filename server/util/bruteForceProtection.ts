@@ -29,7 +29,9 @@ export class LoginBruteForceProtection {
     const forwarded = req.headers['x-forwarded-for']
     if (forwarded) {
       const ips = Array.isArray(forwarded) ? forwarded[0] : forwarded.split(',')[0]
-      return ips.trim() || 'unknown'
+      if (ips) {
+        return ips.trim() || 'unknown'
+      }
     }
     const cfIP = req.headers['cf-connecting-ip']
     if (cfIP) {

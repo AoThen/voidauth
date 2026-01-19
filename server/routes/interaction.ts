@@ -728,7 +728,14 @@ router.post('/login',
 
     const { input, password, remember } = validatorData<LoginUser>(req)
 
-    const ip = bruteForceProtection.getClientIP(req)
+    const ip = bruteForceProtection.getClientIP(req as unknown as {
+      headers: {
+        'x-forwarded-for'?: string | string[]
+        'cf-connecting-ip'?: string | string[]
+        'x-real-ip'?: string | string[]
+      }
+      socket?: { remoteAddress?: string }
+    })
     const identifier = bruteForceProtection.getIdentifier(input, ip)
 
     if (bruteForceProtection.isBlocked(identifier)) {
