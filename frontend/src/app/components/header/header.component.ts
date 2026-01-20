@@ -1,4 +1,4 @@
-import { Component, inject, output, type OnInit } from '@angular/core'
+import { Component, inject, output, type OnInit, ChangeDetectorRef } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { ThemeToggleComponent } from '../theme-toggle/theme-toggle.component'
 import { MaterialModule } from '../../material-module'
@@ -36,6 +36,7 @@ export class HeaderComponent implements OnInit {
   private spinnerService = inject(SpinnerService)
   private i18nService = inject(I18nService)
   private snackBar = inject(MatSnackBar)
+  private cdr = inject(ChangeDetectorRef)
 
   async ngOnInit() {
     try {
@@ -53,6 +54,7 @@ export class HeaderComponent implements OnInit {
     const currentLang = this.i18nService.getLang()
     const newLang = currentLang === 'en' ? 'zh' : 'en'
     this.i18nService.setLang(newLang)
+    this.cdr.detectChanges()
     this.snackBar.open(`Language switched to ${newLang === 'en' ? 'English' : '中文'}`, 'Close', {
       duration: 2000,
     })

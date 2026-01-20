@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  voidauth:
+    image: voidauth/voidauth:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./voidauth/config:/app/config
+      - ./voidauth/theme:/app/theme
+    environment:
+      # Required environment variables
+      APP_URL: https://auth.example.com
+      STORAGE_KEY: ${STORAGE_KEY:-your-secure-random-key-min-32-chars}
+      DB_HOST: voidauth-db
+      DB_PASSWORD: ${DB_PASSWORD:-your-secure-db-password}
+
+      # =============================================
+      # 初始管理员密码 (可选)
+      # =============================================
+      # 如果未设置，将自动生成32位随机密码并记录在日志中
+      # 推荐: 在首次部署前设置为强密码
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+
+      # =============================================
+      # 登录防暴力破解配置 (内存存储，重启Docker后失效)
+      # =============================================
+      # 最大失败登录尝试次数
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-10}
+      # 达到最大尝试次数后的锁定时间(分钟)
+      LOGIN_BLOCK_DURATION: ${LOGIN_BLOCK_DURATION:-15}
+
+      # =============================================
+      # 可选配置
+      # =============================================
+      # 数据库端口 (默认 5432)
+      # DB_PORT: 5432
+      # 数据库名 (默认 voidauth)
+      # DB_NAME: voidauth
+      # 数据库用户 (默认 postgres)
+      # DB_USER: postgres
+      # Redis URL (用于会话存储，格式: redis://user:pass@host:port/db)
+      # REDIS_URL:
+      # SMTP 配置 (用于发送邮件)
+      # SMTP_HOST: smtp.example.com
+      # SMTP_PORT: 587
+      # SMTP_USER: your-email@example.com
+      # SMTP_PASS: your-email-password
+      # SMTP_FROM: VoidAuth <noreply@example.com>
+      # 邮件语言 (默认 en, 支持 en/zh)
+      # APP_LANGUAGE: zh
+
+    depends_on:
+      voidauth-db:
+        condition: service_healthy
+    networks:
+      - voidauth-network
+
+  voidauth-db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your-secure-db-password}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: voidauth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voidauth-network
+
+  # 可选: Redis 用于会话存储 (生产环境推荐)
+  # voidauth-redis:
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - voidauth-network
+
+volumes:
+  postgres_data:
+  # redis_data:
+
+networks:
+  voidauth-network:
+    driver: bridge
