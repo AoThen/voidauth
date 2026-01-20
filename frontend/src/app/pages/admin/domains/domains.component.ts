@@ -12,12 +12,15 @@ import { MaterialModule } from '../../../material-module'
 import { sortWildcardDomains } from '@shared/utils'
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../../dialogs/confirm/confirm.component'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../../services/i18n.service'
 
 @Component({
   selector: 'app-domains',
   imports: [
     MaterialModule,
     RouterLink,
+    TranslateModule,
   ],
   templateUrl: './domains.component.html',
   styleUrl: './domains.component.scss',
@@ -46,6 +49,7 @@ export class DomainsComponent {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngAfterViewInit() {
     try {
@@ -82,8 +86,8 @@ export class DomainsComponent {
     const domain = this.dataSource.data.find(d => d.id === proxyauth_id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove domain '${domain?.domain ?? proxyauth_id}'?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteDomain', { domain: domain?.domain ?? proxyauth_id }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -96,9 +100,9 @@ export class DomainsComponent {
         this.spinnerService.show()
         await this.adminService.deleteProxyAuth(proxyauth_id)
         this.dataSource.data = this.dataSource.data.filter(c => c.id !== proxyauth_id)
-        this.snackbarService.message('Domain was deleted.')
+        this.snackbarService.message(this.i18nService.instant('admin.domainDeleted'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete domain.')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteDomain'))
       } finally {
         this.spinnerService.hide()
       }

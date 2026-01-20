@@ -201,6 +201,24 @@
     "verificationEmailSent": "Verification email sent.",
     "authenticatorAdded": "Authenticator added successfully.",
     "mfaEnabled": "Multi-Factor Authentication enabled.",
-    "profile": "Profile"
+    "profile": "Profile",
+    "groupDeleted": "Group was deleted.",
+    "couldNotDeleteGroup": "Could not delete group.",
+    "confirmDeleteGroup": "Are you sure you want to remove group '{name}'?",
+    "noGroups": "No groups.",
+    "invitationDeleted": "Invitation was deleted.",
+    "couldNotDeleteInvitation": "Could not delete invitation.",
+    "confirmDeleteInvitation": "Are you sure you want to remove invitation for '{email}'?",
+    "noInvitations": "No invitations.",
+    "clientDeleted": "App {name} was deleted.",
+    "couldNotDeleteClient": "Could not delete app.",
+    "confirmDeleteClient": "Are you sure you want to remove app '{name}'?",
+    "noOidcApps": "No OIDC Apps.",
+    "domainDeleted": "Domain was deleted.",
+    "couldNotDeleteDomain": "Could not delete domain.",
+    "confirmDeleteDomain": "Are you sure you want to remove domain '{domain}'?",
+    "noDomains": "No Domains.",
+    "domainInfo": "Domain Info",
+    "domainInfoText": "Domains will be checked from most to least specific. Once a match is found, user groups are checked and the user will be rejected or allowed access."
   }
 }

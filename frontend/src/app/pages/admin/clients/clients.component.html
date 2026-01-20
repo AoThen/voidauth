@@ -1,6 +1,6 @@
 <div class="container">
   <span style="align-self: end">
-    <a mat-flat-button routerLink="/admin/client">Create OIDC App</a>
+    <a mat-flat-button routerLink="/admin/client">{{ "admin.create" | translate }} OIDC App</a>
   </span>
   <app-oidc-info style="width: 100%; margin-bottom: 8px; margin-top: 8px"></app-oidc-info>
 
@@ -8,7 +8,7 @@
     @for (column of columns; track column) {
       <ng-container [matColumnDef]="column.columnDef">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>
-          {{ column.header }}
+          {{ column.header | translate }}
         </th>
         <td mat-cell style="white-space: pre-line" *matCellDef="let row">
           @if (column.isIcon) {
@@ -23,10 +23,10 @@
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef></th>
       <td mat-cell *matCellDef="let row" class="actions">
-        <a mat-icon-button [routerLink]="['/admin', 'client', row.client_id]" matTooltip="Edit">
+        <a mat-icon-button [routerLink]="['/admin', 'client', row.client_id]" [matTooltip]="'common.edit' | translate">
           <mat-icon fontSet="material-icons-round">edit</mat-icon>
         </a>
-        <button mat-icon-button type="button" (click)="delete(row.client_id)" matTooltip="Delete">
+        <button mat-icon-button type="button" (click)="delete(row.client_id)" [matTooltip]="'common.delete' | translate">
           <mat-icon fontSet="material-icons-round">delete_forever</mat-icon>
         </button>
       </td>
@@ -37,7 +37,9 @@
 
     <!-- Row shown when there is no matching data. -->
     <tr *matNoDataRow>
-      <td style="height: 40px; text-align: center; font-weight: bold" [attr.colspan]="columns.length + 1"><h1>No OIDC Apps.</h1></td>
+      <td style="height: 40px; text-align: center; font-weight: bold" [attr.colspan]="columns.length + 1">
+        <h1>{{ "admin.noOidcApps" | translate }}</h1>
+      </td>
     </tr>
   </table>
 

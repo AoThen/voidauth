@@ -11,6 +11,8 @@ import { OidcInfoComponent } from '../../../components/oidc-info/oidc-info.compo
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../../dialogs/confirm/confirm.component'
 import type { ClientResponse } from '@shared/api-response/ClientResponse'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../../services/i18n.service'
 
 export type TableColumn<T> = {
   columnDef: keyof T & string
@@ -25,6 +27,7 @@ export type TableColumn<T> = {
     MaterialModule,
     RouterLink,
     OidcInfoComponent,
+    TranslateModule,
   ],
   templateUrl: './clients.component.html',
   styleUrl: './clients.component.scss',
@@ -59,6 +62,7 @@ export class ClientsComponent implements AfterViewInit {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngAfterViewInit() {
     try {
@@ -76,8 +80,8 @@ export class ClientsComponent implements AfterViewInit {
     const client = this.dataSource.data.find(c => c.client_id === client_id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove app '${client?.client_name ?? client_id}'?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteClient', { name: client?.client_name ?? client_id }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -90,9 +94,9 @@ export class ClientsComponent implements AfterViewInit {
         this.spinnerService.show()
         await this.adminService.deleteClient(client_id)
         this.dataSource.data = this.dataSource.data.filter(c => c.client_id !== client_id)
-        this.snackbarService.message(`App ${client?.client_name ?? client_id} was deleted.`)
+        this.snackbarService.message(this.i18nService.instant('admin.clientDeleted', { name: client?.client_name ?? client_id }))
       } catch (_e) {
-        this.snackbarService.error('Could not delete app.')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteClient'))
       } finally {
         this.spinnerService.hide()
       }

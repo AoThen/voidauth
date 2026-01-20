@@ -12,12 +12,15 @@ import { RouterLink } from '@angular/router'
 import { SpinnerService } from '../../../services/spinner.service'
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../../dialogs/confirm/confirm.component'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../../services/i18n.service'
 
 @Component({
   selector: 'app-groups',
   imports: [
     MaterialModule,
     RouterLink,
+    TranslateModule,
   ],
   templateUrl: './groups.component.html',
   styleUrl: './groups.component.scss',
@@ -44,6 +47,7 @@ export class GroupsComponent {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngAfterViewInit() {
     try {
@@ -61,8 +65,8 @@ export class GroupsComponent {
     const group = this.dataSource.data.find(g => g.id === id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove group '${group?.name ?? id}'?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteGroup', { name: group?.name ?? id }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -75,9 +79,9 @@ export class GroupsComponent {
         this.spinnerService.show()
         await this.adminService.deleteGroup(id)
         this.dataSource.data = this.dataSource.data.filter(g => g.id !== id)
-        this.snackbarService.message('Group was deleted.')
+        this.snackbarService.message(this.i18nService.instant('admin.groupDeleted'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete group.')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteGroup'))
       } finally {
         this.spinnerService.hide()
       }

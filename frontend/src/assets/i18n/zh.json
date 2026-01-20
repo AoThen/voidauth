@@ -201,6 +201,24 @@
     "verificationEmailSent": "验证邮件已发送。",
     "authenticatorAdded": "验证器添加成功。",
     "mfaEnabled": "多因素认证已启用。",
-    "profile": "个人资料"
+    "profile": "个人资料",
+    "groupDeleted": "组已删除。",
+    "couldNotDeleteGroup": "无法删除组。",
+    "confirmDeleteGroup": "您确定要删除组 '{name}' 吗？",
+    "noGroups": "没有组。",
+    "invitationDeleted": "邀请已删除。",
+    "couldNotDeleteInvitation": "无法删除邀请。",
+    "confirmDeleteInvitation": "您确定要删除 '{email}' 的邀请吗？",
+    "noInvitations": "没有邀请。",
+    "clientDeleted": "应用 {name} 已删除。",
+    "couldNotDeleteClient": "无法删除应用。",
+    "confirmDeleteClient": "您确定要删除应用 '{name}' 吗？",
+    "noOidcApps": "没有 OIDC 应用。",
+    "domainDeleted": "域名已删除。",
+    "couldNotDeleteDomain": "无法删除域名。",
+    "confirmDeleteDomain": "您确定要删除域名 '{domain}' 吗？",
+    "noDomains": "没有域名。",
+    "domainInfo": "域名信息",
+    "domainInfoText": "域名将从最具体到最不依次检查。一旦找到匹配，将检查用户组，用户将被拒绝或允许访问。"
   }
 }

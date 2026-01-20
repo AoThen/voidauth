@@ -11,12 +11,15 @@ import type { Invitation } from '@shared/db/Invitation'
 import { SpinnerService } from '../../../services/spinner.service'
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../../dialogs/confirm/confirm.component'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../../services/i18n.service'
 
 @Component({
   selector: 'app-invitations',
   imports: [
     MaterialModule,
     RouterLink,
+    TranslateModule,
   ],
   templateUrl: './invitations.component.html',
   styleUrl: './invitations.component.scss',
@@ -51,6 +54,7 @@ export class InvitationsComponent {
   private snackbarService = inject(SnackbarService)
   private spinnerService = inject(SpinnerService)
   private dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngAfterViewInit() {
     // Assign the data to the data source for the table to render
@@ -68,8 +72,8 @@ export class InvitationsComponent {
     const invite = this.dataSource.data.find(i => i.id === id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove invitation for '${invite?.username ?? invite?.email ?? id}'?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteInvitation', { email: invite?.username ?? invite?.email ?? id }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -82,9 +86,9 @@ export class InvitationsComponent {
         this.spinnerService.show()
         await this.adminService.deleteInvitation(id)
         this.dataSource.data = this.dataSource.data.filter(g => g.id !== id)
-        this.snackbarService.message('Invitation was deleted.')
+        this.snackbarService.message(this.i18nService.instant('admin.invitationDeleted'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete invitation.')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteInvitation'))
       } finally {
         this.spinnerService.hide()
       }
