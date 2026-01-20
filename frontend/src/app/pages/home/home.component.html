@@ -1,20 +1,20 @@
-<h1>Settings</h1>
+<h1>{{ "common.settings" | translate }}</h1>
 
 <!-- profile card -->
 <mat-card class="form-card">
   <mat-card-header>
-    <mat-card-title> Profile </mat-card-title>
+    <mat-card-title> {{ "common.profile" | translate }} </mat-card-title>
   </mat-card-header>
 
   <mat-card-content>
     <form [formGroup]="profileForm" (ngSubmit)="updateProfile()">
       <mat-form-field>
-        <mat-label>Username</mat-label>
+        <mat-label>{{ "common.username" | translate }}</mat-label>
         <input matInput type="text" [value]="user?.username ?? ''" readonly disabled />
       </mat-form-field>
 
       <mat-form-field>
-        <mat-label>Name</mat-label>
+        <mat-label>{{ "common.name" | translate }}</mat-label>
         <input matInput type="text" formControlName="name" />
         @if (profileForm.controls.name.errors) {
           <mat-error>{{ profileForm.controls.name.errors | validationError }}</mat-error>
@@ -23,7 +23,7 @@
 
       <mat-card-actions>
         <button mat-flat-button type="submit" [disabled]="!profileForm.enabled || !profileForm.valid || !profileForm.dirty">
-          Update Profile
+          {{ "common.updateProfile" | translate }}
         </button>
       </mat-card-actions>
     </form>
@@ -32,7 +32,7 @@
 
     <form [formGroup]="emailForm" (ngSubmit)="updateEmail()">
       <mat-form-field>
-        <mat-label>Email</mat-label>
+        <mat-label>{{ "common.email" | translate }}</mat-label>
         <input matInput type="text" formControlName="email" />
         @if (emailForm.controls.email.errors) {
           <mat-error>{{ emailForm.controls.email.errors | validationError }}</mat-error>
@@ -40,7 +40,9 @@
       </mat-form-field>
 
       <mat-card-actions>
-        <button mat-flat-button type="submit" [disabled]="!emailForm.enabled || !emailForm.valid || !emailForm.dirty">Update Email</button>
+        <button mat-flat-button type="submit" [disabled]="!emailForm.enabled || !emailForm.valid || !emailForm.dirty">
+          {{ "common.updateEmail" | translate }}
+        </button>
       </mat-card-actions>
     </form>
   </mat-card-content>
@@ -51,7 +53,7 @@
 <!-- security card -->
 <mat-card class="form-card">
   <mat-card-header>
-    <mat-card-title> Security </mat-card-title>
+    <mat-card-title> {{ "common.security" | translate }} </mat-card-title>
   </mat-card-header>
   <mat-card-content>
     <form [formGroup]="passwordForm">
@@ -70,33 +72,43 @@
           (click)="updatePassword()"
           [disabled]="!passwordForm.enabled || !passwordForm.valid || !passwordForm.dirty"
         >
-          {{ user?.hasPassword ? "Change " : "Set " }} Password
+          {{ user?.hasPassword ? ("common.changePassword" | translate) : ("common.setPassword" | translate) }}
+          {{ "common.password" | translate }}
         </button>
 
         <mat-divider class="disabled"></mat-divider>
 
-        <h2 style="margin-top: -16px">Passkeys</h2>
+        <h2 style="margin-top: -16px">{{ "common.passkeys" | translate }}</h2>
 
-        <p style="text-align: center">You have {{ user?.hasPasskeys ? "at least one registered passkey" : "no registered passkeys" }}.</p>
+        <p style="text-align: center">{{ user?.hasPasskeys ? ("common.hasPasskey" | translate) : ("common.noPasskey" | translate) }}.</p>
 
         <button mat-flat-button type="button" (click)="registerPasskey()" [disabled]="!passkeySupport?.enabled">
-          Register Passkey
+          {{ "common.registerPasskey" | translate }}
           <mat-icon fontSet="material-icons-round" matSuffix>key</mat-icon>
         </button>
 
         <mat-divider class="disabled"></mat-divider>
 
-        <h2 style="margin-top: -16px">Multi-Factor Authentication</h2>
+        <h2 style="margin-top: -16px">{{ "common.mfa" | translate }}</h2>
 
         <p style="text-align: center">
-          Multi-Factor Authentication is <b>{{ user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired ? "" : "not" }} enabled</b>.
+          {{ "common.mfa" | translate }}
+          {{
+            user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired
+              ? ("common.mfaEnabled" | translate)
+              : ("common.mfaNotEnabled" | translate)
+          }}.
         </p>
         <p style="text-align: center">
-          You have {{ user?.hasTotp ? "at least one registered Authenticator" : "no registered Authenticators" }}.
+          {{ user?.hasTotp ? ("common.hasAuthenticator" | translate) : ("common.noAuthenticator" | translate) }}.
         </p>
 
         <button mat-flat-button type="button" (click)="addAuthenticator()">
-          {{ user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired ? "Add Authenticator" : "Enable MFA" }}
+          {{
+            user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired
+              ? ("common.addAuthenticator" | translate)
+              : ("common.enableMfa" | translate)
+          }}
           <mat-icon fontSet="material-icons-round" matSuffix>lock</mat-icon>
         </button>
       </mat-card-actions>
@@ -109,13 +121,19 @@
 <!-- account card -->
 <mat-card class="form-card">
   <mat-card-header>
-    <mat-card-title> Account </mat-card-title>
+    <mat-card-title> {{ "common.account" | translate }} </mat-card-title>
   </mat-card-header>
   <mat-card-content>
     <form>
       <mat-card-actions>
         <span
-          [matTooltip]="!user?.hasPassword ? 'You have no password to remove' : !user?.hasPasskeys ? 'You do not have any passkeys' : null"
+          [matTooltip]="
+            !user?.hasPassword
+              ? ('common.noPasswordToRemove' | translate)
+              : !user?.hasPasskeys
+                ? ('common.removePasskeysTooltipNoPasskeys' | translate)
+                : null
+          "
           ><button
             mat-flat-button
             type="button"
@@ -123,12 +141,18 @@
             (click)="removePassword()"
             [disabled]="!user?.hasPassword || !user?.hasPasskeys"
           >
-            Remove Password
+            {{ "common.removePassword" | translate }}
           </button></span
         >
 
         <span
-          [matTooltip]="!user?.hasPasskeys ? 'You have no passkeys to remove' : !user?.hasPassword ? 'You do not have a password' : null"
+          [matTooltip]="
+            !user?.hasPasskeys
+              ? ('common.removePasskeysTooltipNoPasskeys' | translate)
+              : !user?.hasPassword
+                ? ('common.removePasskeysTooltipNoPassword' | translate)
+                : null
+          "
           ><button
             mat-flat-button
             type="button"
@@ -136,15 +160,13 @@
             (click)="removeAllPasskeys()"
             [disabled]="!user?.hasPasskeys || !user?.hasPassword"
           >
-            Remove All Passkeys
+            {{ "common.removeAllPasskeys" | translate }}
           </button></span
         >
 
         <span
           [matTooltip]="
-            user?.hasTotp || user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired
-              ? null
-              : 'Multi-Factor Authentication is not enabled'
+            user?.hasTotp || user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired ? null : ('common.mfaNotEnabled' | translate)
           "
           ><button
             mat-flat-button
@@ -153,11 +175,15 @@
             (click)="removeAllAuthenticators()"
             [disabled]="!user?.hasTotp && (!user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired)"
           >
-            {{ user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired ? "Disable MFA" : "Remove Authenticators" }}
+            {{
+              user?.mfaRequired || user?.hasMfaGroup || config?.mfaRequired
+                ? ("common.disableMfa" | translate)
+                : ("common.removeAuthenticators" | translate)
+            }}
           </button></span
         >
 
-        <button mat-flat-button type="button" class="danger-button" (click)="deleteUser()">Delete Account</button>
+        <button mat-flat-button type="button" class="danger-button" (click)="deleteUser()">{{ "common.deleteAccount" | translate }}</button>
       </mat-card-actions>
     </form>
   </mat-card-content>
@@ -166,5 +192,5 @@
 <span style="flex-grow: 1"></span>
 
 @if (config?.contactEmail; as contactEmail) {
-  <a style="margin-top: 48px" mat-button [href]="'mailto:' + contactEmail">Contact</a>
+  <a style="margin-top: 48px" mat-button [href]="'mailto:' + contactEmail">{{ "common.contact" | translate }}</a>
 }

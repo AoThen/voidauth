@@ -15,6 +15,8 @@ import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../../dialogs/confirm/confirm.component'
 import { FormControl, ReactiveFormsModule } from '@angular/forms'
 import { debounceTime, distinctUntilChanged } from 'rxjs'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../../services/i18n.service'
 
 @Component({
   selector: 'app-users',
@@ -22,6 +24,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs'
     MaterialModule,
     RouterLink,
     ReactiveFormsModule,
+    TranslateModule,
   ],
   templateUrl: './users.component.html',
   styleUrl: './users.component.scss',
@@ -71,6 +74,7 @@ export class UsersComponent {
   private userService = inject(UserService)
   private spinnerService = inject(SpinnerService)
   readonly dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngAfterViewInit() {
     // Assign the data to the data source for the table to render
@@ -121,8 +125,8 @@ export class UsersComponent {
     const user = this.dataSource.data.find(u => u.id === id)
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove user '${user?.username ?? id}'?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteUser', { username: user?.username ?? id }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -134,9 +138,9 @@ export class UsersComponent {
         this.spinnerService.show()
         await this.adminService.deleteUser(id)
         this.dataSource.data = this.dataSource.data.filter(g => g.id !== id)
-        this.snackbarService.message('User was deleted.')
+        this.snackbarService.message(this.i18nService.instant('admin.userDeleted'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete user.')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteUser'))
       } finally {
         this.spinnerService.hide()
       }
@@ -154,8 +158,8 @@ export class UsersComponent {
   approveSelected() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to approve ${String(this.selected.length)} user(s)?`,
-        header: 'Approval',
+        message: this.i18nService.instant('admin.confirmApproveUsers', { count: String(this.selected.length) }),
+        header: this.i18nService.instant('admin.approval'),
       },
     })
 
@@ -176,9 +180,9 @@ export class UsersComponent {
 
         this.toggleSelectEnabled()
 
-        this.snackbarService.message('User(s) were approved.')
+        this.snackbarService.message(this.i18nService.instant('admin.userApproveSuccess'))
       } catch (_e) {
-        this.snackbarService.error('Could not approve user(s).')
+        this.snackbarService.error(this.i18nService.instant('admin.errorApproveUser'))
       } finally {
         this.spinnerService.hide()
       }
@@ -188,8 +192,8 @@ export class UsersComponent {
   deleteSelected() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to delete ${String(this.selected.length)} user(s)?`,
-        header: 'Delete',
+        message: this.i18nService.instant('admin.confirmDeleteUsers', { count: String(this.selected.length) }),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -206,9 +210,9 @@ export class UsersComponent {
 
         this.toggleSelectEnabled()
 
-        this.snackbarService.message('User(s) were deleted.')
+        this.snackbarService.message(this.i18nService.instant('admin.userDeleteSuccess'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete user(s).')
+        this.snackbarService.error(this.i18nService.instant('admin.errorDeleteUsers'))
       } finally {
         this.spinnerService.hide()
       }

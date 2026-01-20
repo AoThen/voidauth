@@ -14,6 +14,8 @@ import type { ConfigResponse } from '@shared/api-response/ConfigResponse'
 import { MatDialog } from '@angular/material/dialog'
 import { ConfirmComponent } from '../../dialogs/confirm/confirm.component'
 import { TotpRegisterComponent } from '../../dialogs/totp-register/totp-register.component'
+import { TranslateModule } from '@ngx-translate/core'
+import { I18nService } from '../../services/i18n.service'
 
 @Component({
   selector: 'app-home',
@@ -22,6 +24,7 @@ import { TotpRegisterComponent } from '../../dialogs/totp-register/totp-register
     MaterialModule,
     ValidationErrorPipe,
     PasswordSetComponent,
+    TranslateModule,
   ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
@@ -77,6 +80,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private spinnerService = inject(SpinnerService)
   passkeyService = inject(PasskeyService)
   private dialog = inject(MatDialog)
+  private i18nService = inject(I18nService)
 
   async ngOnInit() {
     await this.loadUser()
@@ -129,9 +133,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       await this.userService.updateProfile({
         name: this.profileForm.value.name ?? undefined,
       })
-      this.snackbarService.message('Profile updated.')
+      this.snackbarService.message(this.i18nService.instant('error.profileUpdated'))
     } catch (_e) {
-      this.snackbarService.error('Could not update profile.')
+      this.snackbarService.error(this.i18nService.instant('error.couldNotUpdateProfile'))
     } finally {
       await this.loadUser()
       this.spinnerService.hide()
@@ -150,10 +154,10 @@ export class HomeComponent implements OnInit, OnDestroy {
         oldPassword: oldPassword,
         newPassword: newPassword,
       })
-      this.snackbarService.message('Password updated.')
+      this.snackbarService.message(this.i18nService.instant('error.passwordUpdated'))
       await this.loadUser()
     } catch (_e) {
-      this.snackbarService.error('Could not update password.')
+      this.snackbarService.error(this.i18nService.instant('error.couldNotUpdatePassword'))
     } finally {
       this.spinnerService.hide()
     }
@@ -171,13 +175,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       })
       // if email verification enabled, indicate that in message
       if (this.config?.emailVerification) {
-        this.snackbarService.message('Verification email sent.')
+        this.snackbarService.message(this.i18nService.instant('error.verificationEmailSent'))
       } else {
-        this.snackbarService.message('Email updated.')
+        this.snackbarService.message(this.i18nService.instant('error.emailUpdated'))
       }
     } catch (e) {
       console.error(e)
-      this.snackbarService.error('Could not update email.')
+      this.snackbarService.error(this.i18nService.instant('error.couldNotUpdateEmail'))
     } finally {
       await this.loadUser()
       this.spinnerService.hide()
@@ -189,12 +193,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     try {
       await this.passkeyService.register()
       await this.loadUser()
-      this.snackbarService.message('Passkey registered successfully.')
+      this.snackbarService.message(this.i18nService.instant('error.passkeyRegisteredSuccess'))
     } catch (error) {
       if (error instanceof WebAuthnError && error.name === 'InvalidStateError') {
-        this.snackbarService.error('Passkey already registered.')
+        this.snackbarService.error(this.i18nService.instant('error.passkeyAlreadyRegistered'))
       } else {
-        this.snackbarService.error('Could not register Passkey.')
+        this.snackbarService.error(this.i18nService.instant('error.couldNotRegisterPasskey'))
       }
       console.error(error)
     } finally {
@@ -212,7 +216,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(async (result) => {
       if (result) {
         await this.loadUser()
-        this.snackbarService.message(hadTotp ? 'Authenticator added successfully.' : 'Multi-Factor Authentication enabled.')
+        this.snackbarService.message(hadTotp ? this.i18nService.instant('error.authenticatorAdded') : this.i18nService.instant('error.mfaEnabled'))
       }
     })
   }
@@ -220,8 +224,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   removeAllPasskeys() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to delete all of your account Passkeys? Previously enabled services like FaceID, Windows Hello, TouchID, etc. will stop working.`,
-        header: 'Delete',
+        message: this.i18nService.instant('common.removeAllPasskeys') + '. ' + this.i18nService.instant('common.mfaNotEnabled'),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -235,9 +239,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         await this.userService.removeAllPasskeys()
         this.passkeyService.resetPasskeySeen()
         this.passkeyService.resetPasskeySkipped()
-        this.snackbarService.message('Removed all Passkeys.')
+        this.snackbarService.message(this.i18nService.instant('error.removedAllPasskeys'))
       } catch (_e) {
-        this.snackbarService.error('Could not remove all Passkeys.')
+        this.snackbarService.error(this.i18nService.instant('error.couldNotRemoveAllPasskeys'))
       } finally {
         await this.loadUser()
         this.spinnerService.hide()
@@ -248,8 +252,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   removePassword() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to remove your account password? You will have to login with a Passkey, FaceID, Windows Hello, etc. until you set a password again.`,
-        header: 'Remove',
+        message: this.i18nService.instant('common.removePassword') + '. ' + this.i18nService.instant('common.logoutTitle'),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -261,9 +265,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       try {
         this.spinnerService.show()
         await this.userService.removePassword()
-        this.snackbarService.message('Removed password.')
+        this.snackbarService.message(this.i18nService.instant('error.removedPassword'))
       } catch (_e) {
-        this.snackbarService.error('Could not remove password.')
+        this.snackbarService.error(this.i18nService.instant('error.couldNotRemovePassword'))
       } finally {
         await this.loadUser()
         this.spinnerService.hide()
@@ -274,8 +278,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   removeAllAuthenticators() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to disable Multi-Factor Authentication and remove any Authenticators on your account?`,
-        header: 'Remove',
+        message: this.i18nService.instant('common.removeAuthenticators'),
+        header: this.i18nService.instant('common.delete'),
       },
     })
 
@@ -287,9 +291,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       try {
         this.spinnerService.show()
         await this.userService.removeAllAuthenticators()
-        this.snackbarService.message('Multi-Factor Authentication disabled and Authenticators removed.')
+        this.snackbarService.message(this.i18nService.instant('error.mfaDisabled'))
       } catch (_e) {
-        this.snackbarService.error('Could not disable Multi-Factor Authentication or remove Authenticators.')
+        this.snackbarService.error(this.i18nService.instant('error.couldNotDisableMfa'))
       } finally {
         await this.loadUser()
         this.spinnerService.hide()
@@ -300,7 +304,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   deleteUser() {
     const dialogRef = this.dialog.open(ConfirmComponent, {
       data: {
-        message: `Are you sure you want to delete your account?`,
+        message: this.i18nService.instant('common.deleteAccount') + '.',
         header: 'DANGER',
         requiredText: this.user?.username,
       },
@@ -314,9 +318,9 @@ export class HomeComponent implements OnInit, OnDestroy {
       try {
         this.spinnerService.show()
         await this.userService.deleteUser()
-        this.snackbarService.message('Deleted account.')
+        this.snackbarService.message(this.i18nService.instant('error.deletedAccount'))
       } catch (_e) {
-        this.snackbarService.error('Could not delete account.')
+        this.snackbarService.error(this.i18nService.instant('error.couldNotDeleteAccount'))
       } finally {
         await this.loadUser()
         this.spinnerService.hide()
