@@ -1,4 +1,4 @@
-import { Router, type Response, type Request } from 'express'
+import { Router, type Response } from 'express'
 import { getSession, provider } from '../oidc/provider'
 import { checkPasswordHash, getUserById, getUserByInput } from '../db/user'
 import { addConsent, getConsentScopes, getExistingConsent } from '../db/consent'
@@ -684,7 +684,7 @@ router.post('/login',
     if (bruteForceProtection.isBlocked(identifier)) {
       const remainingMinutes = bruteForceProtection.getRemainingBlockTime(identifier)
       res.status(429).send({
-        message: `Too many failed attempts. Blocked for ${remainingMinutes} minutes.`,
+        message: `Too many failed attempts. Blocked for ${String(remainingMinutes)} minutes.`,
         remainingMinutes,
       })
       return
@@ -701,7 +701,7 @@ router.post('/login',
       const result = bruteForceProtection.recordFailedAttempt(input, clientIP)
       if (result.blocked) {
         res.status(429).send({
-          message: `Too many failed attempts. Blocked for ${result.blockTimeMinutes} minutes.`,
+          message: `Too many failed attempts. Blocked for ${String(result.blockTimeMinutes)} minutes.`,
           remainingMinutes: result.blockTimeMinutes,
         })
         return

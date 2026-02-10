@@ -30,10 +30,11 @@ export class I18nService {
   }
 
   getLang(): 'en' | 'zh' {
-    return (localStorage.getItem('lang') as 'en' | 'zh') || 'en'
+    const savedLang = localStorage.getItem('lang')
+    return (savedLang === 'en' || savedLang === 'zh') ? savedLang : 'en'
   }
 
-  instant(key: string, params?: Record<string, unknown>) {
+  instant(key: string, params?: Record<string, unknown>): string {
     return this.translate.instant(key, params)
   }
 }
