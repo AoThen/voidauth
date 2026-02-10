@@ -35,6 +35,6 @@ export class I18nService {
   }
 
   instant(key: string, params?: Record<string, unknown>): string {
-    return this.translate.instant(key, params)
+    return this.translate.instant(key, params) as string
   }
 }
