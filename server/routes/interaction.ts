@@ -666,7 +666,7 @@ router.post('/totp/registration',
  * Login with password, finishes login and adds pwd to amr
  */
 router.post('/login',
-  zodValidate({ body: loginUserValidator }), async (req: Request, res) => {
+  zodValidate({ body: loginUserValidator }), async (req, res) => {
     const interaction = await getInteractionDetails(req, res)
     const session = await getSession(req, res)
     if (!interaction && !session?.accountId) {
@@ -678,7 +678,7 @@ router.post('/login',
 
     const { input, password, remember } = req.body
 
-    const clientIP = bruteForceProtection.getClientIP(req)
+    const clientIP = bruteForceProtection.getClientIP(req as unknown as Parameters<typeof bruteForceProtection.getClientIP>[0])
     const identifier = bruteForceProtection.getIdentifier(input, clientIP)
 
     if (bruteForceProtection.isBlocked(identifier)) {
