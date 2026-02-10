@@ -1,4 +1,4 @@
-import { Router, type Response } from 'express'
+import { Router, type Response, type Request } from 'express'
 import { getSession, provider } from '../oidc/provider'
 import { checkPasswordHash, getUserById, getUserByInput } from '../db/user'
 import { addConsent, getConsentScopes, getExistingConsent } from '../db/consent'
@@ -54,6 +54,7 @@ import { zodValidate } from '../util/zodValidate'
 import zod from 'zod'
 import { passkeyRegistrationValidator } from '../../shared/validators'
 import { passwordStrength } from '../util/zxcvbn'
+import { bruteForceProtection } from '../util/bruteForceProtection'
 
 export const router = Router()
 
@@ -665,7 +666,7 @@ router.post('/totp/registration',
  * Login with password, finishes login and adds pwd to amr
  */
 router.post('/login',
-  zodValidate({ body: loginUserValidator }), async (req, res) => {
+  zodValidate({ body: loginUserValidator }), async (req: Request, res) => {
     const interaction = await getInteractionDetails(req, res)
     const session = await getSession(req, res)
     if (!interaction && !session?.accountId) {
@@ -677,6 +678,18 @@ router.post('/login',
 
     const { input, password, remember } = req.body
 
+    const clientIP = bruteForceProtection.getClientIP(req)
+    const identifier = bruteForceProtection.getIdentifier(input, clientIP)
+
+    if (bruteForceProtection.isBlocked(identifier)) {
+      const remainingMinutes = bruteForceProtection.getRemainingBlockTime(identifier)
+      res.status(429).send({
+        message: `Too many failed attempts. Blocked for ${remainingMinutes} minutes.`,
+        remainingMinutes,
+      })
+      return
+    }
+
     const user = await getUserByInput(input)
     if (!user) {
       res.sendStatus(401)
@@ -685,9 +698,19 @@ router.post('/login',
 
     // check user password
     if (!await checkPasswordHash(user.id, password)) {
+      const result = bruteForceProtection.recordFailedAttempt(input, clientIP)
+      if (result.blocked) {
+        res.status(429).send({
+          message: `Too many failed attempts. Blocked for ${result.blockTimeMinutes} minutes.`,
+          remainingMinutes: result.blockTimeMinutes,
+        })
+        return
+      }
       res.sendStatus(401)
       return
     }
+
+    bruteForceProtection.recordSuccessfulAttempt(input, clientIP)
 
     // check if email verification or approval needed, if not log in
     const redir = await loginResult(req, res, {

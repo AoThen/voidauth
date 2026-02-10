@@ -51,6 +51,10 @@ class Config {
   CONTACT_EMAIL?: string
   ADMIN_EMAILS?: number
 
+  // Brute force protection
+  LOGIN_MAX_ATTEMPTS = 10
+  LOGIN_BLOCK_DURATION = 15
+
   // SMTP
   SMTP_HOST?: string
   SMTP_FROM?: string
@@ -68,6 +72,8 @@ function assignConfigValue(key: keyof Config, value: string | undefined) {
     case 'SMTP_PORT':
     case 'PASSWORD_STRENGTH':
     case 'API_RATELIMIT':
+    case 'LOGIN_MAX_ATTEMPTS':
+    case 'LOGIN_BLOCK_DURATION':
       appConfig[key] = posInt(value) ?? appConfig[key]
       break
 
