@@ -44,8 +44,8 @@ export default defineConfig({
   
   // 全局测试设置
   use: {
-    // 基础 URL - goauth 默认端口 3000，但 .env 中可能配置为其他端口
-    baseURL: process.env.GOAUTH_BASE_URL || 'http://localhost:8080',
+    // 基础 URL - goauth 默认端口 3000
+    baseURL: process.env.GOAUTH_BASE_URL || 'http://localhost:3000',
     
     // 失败时收集 trace
     trace: 'on-first-retry',
@@ -85,7 +85,7 @@ export default defineConfig({
   webServer: {
     // 在启动服务器前先清理数据库，确保干净的测试环境
     command: 'cd ../.. && rm -rf data/*.db data/*.db-shm data/*.db-wal && APP_SECURITY_LOGINMAXATTEMPTS=1000 GOAUTH_RATE_LIMIT=0 ./bin/goauth serve',
-    port: 8080,
+    port: 3000,
     timeout: 30000,
     reuseExistingServer: false,
     stdout: 'ignore',

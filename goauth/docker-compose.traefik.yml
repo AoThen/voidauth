@@ -41,8 +41,8 @@ services:
       - APP_UI_APPCOLOR=#906bc7
       - APP_UI_SIGNUPENABLED=true
       - APP_LOGGING_LEVEL=info
-      # Optional: Rate limiting (0 = disabled)
-      - GOAUTH_RATE_LIMIT=100
+      # Optional: Rate limiting (0 = disabled, requests per minute)
+      - APP_SERVER_RATELIMIT=100
       - TZ=Asia/Shanghai
     volumes:
       - goauth-data:/app/data

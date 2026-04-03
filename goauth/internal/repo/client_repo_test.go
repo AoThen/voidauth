@@ -51,7 +51,7 @@ func TestClientRepo_Create(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid", "profile"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -75,7 +75,7 @@ func TestClientRepo_Create_WithSecret(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -105,7 +105,7 @@ func TestClientRepo_FindByID(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -142,7 +142,7 @@ func TestClientRepo_List(t *testing.T) {
 
 	// 创建多个客户端
 	for i := 0; i < 3; i++ {
-		redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+		redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 		scopes, _ := json.Marshal([]string{"openid"})
 		grantTypes, _ := json.Marshal([]string{"authorization_code"})
 		responseTypes, _ := json.Marshal([]string{"code"})
@@ -175,7 +175,7 @@ func TestClientRepo_Update(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -210,7 +210,7 @@ func TestClientRepo_Delete(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -238,7 +238,7 @@ func TestClientRepo_ValidateSecret(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})
@@ -271,7 +271,7 @@ func TestClientRepo_List_HasSecret(t *testing.T) {
 	repo := NewClientRepo(db)
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
 	scopes, _ := json.Marshal([]string{"openid"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code"})
 	responseTypes, _ := json.Marshal([]string{"code"})

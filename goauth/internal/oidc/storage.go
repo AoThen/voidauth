@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/rs/zerolog/log"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -41,7 +39,6 @@ type Storage struct {
 	clientRepo *repo.ClientRepo // 添加 clientRepo 以从 clients 表读取
 	cfg        *config.Config
 	key        *rsa.PrivateKey
-	jwkKey     jwk.Key
 	keyOnce    sync.Once  // 确保 initSigningKey 只执行一次
 	keyInitErr error      // 存储初始化错误
 }
@@ -78,13 +75,7 @@ func (s *Storage) doInitSigningKey(ctx context.Context) error {
 		key, err := parseRSAKey(latestKey.Value)
 		if err == nil {
 			s.key = key
-			jwkKey, err := jwk.FromRaw(key.PublicKey)
-			if err == nil {
-				_ = jwkKey.Set(jwk.KeyIDKey, "key-1")
-				_ = jwkKey.Set(jwk.AlgorithmKey, jwa.RS256)
-				s.jwkKey = jwkKey
-				return nil
-			}
+			return nil
 		}
 		log.Warn().Err(err).Msg("Failed to load existing signing key, generating new one")
 	}
@@ -95,15 +86,6 @@ func (s *Storage) doInitSigningKey(ctx context.Context) error {
 		return err
 	}
 	s.key = key
-
-	// 创建 JWK
-	jwkKey, err := jwk.FromRaw(key.PublicKey)
-	if err != nil {
-		return err
-	}
-	_ = jwkKey.Set(jwk.KeyIDKey, "key-1")
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.RS256)
-	s.jwkKey = jwkKey
 
 	// 持久化密钥到数据库
 	keyPEM, err := encodeRSAKey(key)

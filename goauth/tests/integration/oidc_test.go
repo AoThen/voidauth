@@ -70,7 +70,7 @@ func TestOIDC_ClientValidation(t *testing.T) {
 		ID_:           "test-client",
 		Secret_:       hashPassword("test-secret"),
 		Name_:         "Test Client",
-		RedirectURIs_: []string{"http://localhost:8080/callback"},
+		RedirectURIs_: []string{"http://localhost:3000/callback"},
 		Scopes_:       []string{"openid", "profile", "email"},
 	}
 
@@ -102,7 +102,7 @@ func TestOIDC_ClientSecretValidation(t *testing.T) {
 		ID_:           "secret-client",
 		Secret_:       hashPassword("client-secret-123"),
 		Name_:         "Secret Client",
-		RedirectURIs_: []string{"http://localhost:8080/callback"},
+		RedirectURIs_: []string{"http://localhost:3000/callback"},
 		Scopes_:       []string{"openid", "profile"},
 	}
 
@@ -224,7 +224,7 @@ func TestOIDC_CreateAuthRequest(t *testing.T) {
 	// 创建授权请求
 	authReq := &zitadeloidc.AuthRequest{
 		ClientID:     "test-client",
-		RedirectURI:  "http://localhost:8080/callback",
+		RedirectURI:  "http://localhost:3000/callback",
 		ResponseType: zitadeloidc.ResponseTypeCode,
 		Scopes:       []string{"openid", "profile"},
 		State:        "test-state",
@@ -250,7 +250,7 @@ func TestOIDC_AuthRequestByID(t *testing.T) {
 	// 创建授权请求
 	authReq := &zitadeloidc.AuthRequest{
 		ClientID:     "test-client",
-		RedirectURI:  "http://localhost:8080/callback",
+		RedirectURI:  "http://localhost:3000/callback",
 		ResponseType: zitadeloidc.ResponseTypeCode,
 		Scopes:       []string{"openid"},
 	}
@@ -277,7 +277,7 @@ func TestOIDC_CompleteAuthRequest(t *testing.T) {
 	// 创建授权请求
 	authReq := &zitadeloidc.AuthRequest{
 		ClientID:     "test-client",
-		RedirectURI:  "http://localhost:8080/callback",
+		RedirectURI:  "http://localhost:3000/callback",
 		ResponseType: zitadeloidc.ResponseTypeCode,
 		Scopes:       []string{"openid"},
 	}
@@ -427,7 +427,7 @@ func TestOIDC_SaveAuthCode(t *testing.T) {
 	// 创建授权请求
 	authReq := &zitadeloidc.AuthRequest{
 		ClientID:     "test-client",
-		RedirectURI:  "http://localhost:8080/callback",
+		RedirectURI:  "http://localhost:3000/callback",
 		ResponseType: zitadeloidc.ResponseTypeCode,
 		Scopes:       []string{"openid"},
 	}
@@ -468,7 +468,7 @@ func TestOIDC_DeleteAuthRequest(t *testing.T) {
 	// 创建授权请求
 	authReq := &zitadeloidc.AuthRequest{
 		ClientID:     "test-client",
-		RedirectURI:  "http://localhost:8080/callback",
+		RedirectURI:  "http://localhost:3000/callback",
 		ResponseType: zitadeloidc.ResponseTypeCode,
 		Scopes:       []string{"openid"},
 	}
@@ -593,8 +593,8 @@ func TestOIDC_ClientMethods(t *testing.T) {
 		ID_:           "method-test-client",
 		Secret_:       hashPassword("secret"),
 		Name_:         "Method Test Client",
-		RedirectURIs_: []string{"http://localhost:8080/callback", "http://localhost:8080/callback2"},
-		PostLogoutRedirectURIs_: []string{"http://localhost:8080/logout"},
+		RedirectURIs_: []string{"http://localhost:3000/callback", "http://localhost:3000/callback2"},
+		PostLogoutRedirectURIs_: []string{"http://localhost:3000/logout"},
 		Scopes_:       []string{"openid", "profile", "email"},
 		Trusted_:      true,
 		SkipConsent_:  true,
@@ -649,7 +649,7 @@ func TestOIDC_ClientSecretValidation_EmptySecret(t *testing.T) {
 		ID_:           "no-secret-client",
 		Secret_:       "", // 空密钥
 		Name_:         "No Secret Client",
-		RedirectURIs_: []string{"http://localhost:8080/callback"},
+		RedirectURIs_: []string{"http://localhost:3000/callback"},
 		Scopes_:       []string{"openid"},
 	}
 

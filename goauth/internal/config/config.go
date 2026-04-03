@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
@@ -93,7 +92,7 @@ func Load(configPath string) (*Config, error) {
 	k := koanf.New(".")
 
 	// Load .env file if exists
-	_ = godotenv.Load()
+	loadEnvFile(".env")
 
 	// Load config file if provided
 	if configPath != "" {
@@ -299,5 +298,29 @@ func (c *Config) GetCookieSameSite() string {
 		return sameSite
 	default:
 		return "lax"
+	}
+}
+
+// loadEnvFile 从文件加载环境变量（替代 godotenv）
+func loadEnvFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return // 文件不存在不报错
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			// 移除引号
+			if len(value) >= 2 && (value[0] == '"' || value[0] == '\'') && value[0] == value[len(value)-1] {
+				value = value[1 : len(value)-1]
+			}
+			os.Setenv(key, value)
+		}
 	}
 }

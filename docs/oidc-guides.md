@@ -1,15 +1,15 @@
-# OIDC App Guides
+# OIDC 应用配置指南
 
-In the guides below, there may be omitted options when those options are set to the default value.
+以下指南中，当选项设置为默认值时可能会被省略。
 
 > [!TIP]
-> Placeholders are used for common settings, like `your-client-id`, `your-client-secret`, `your-admin-role`, `https://app-name.example.com`, and `Copy from Goauth OIDC Info`. OIDC (Endpoint) Info can be found in the dropdown tab on the admin OIDC and OIDC App pages, and is the recommended source of OIDC related Endpoint URLs.
+> 占位符用于常见设置，如 `your-client-id`、`your-client-secret`、`your-admin-role`、`https://app-name.example.com` 和 `从 Goauth OIDC 信息复制`。OIDC（端点）信息可以在管理员 OIDC 和 OIDC 应用页面的下拉标签中找到，是 OIDC 相关端点 URL 的推荐来源。
 
 > [!CAUTION]
-> Client IDs **must** be unique between OIDC Apps. Client Secrets **must** be long and randomly generated. The Client Secret field on the OIDC App page can be randomly generated and copied it to the clipboard for use within the OIDC App. Client Secrets are encrypted on disk.
+> Client ID 在 OIDC 应用之间**必须**唯一。Client Secret **必须**是长且随机生成的。OIDC 应用页面上的 Client Secret 字段可以随机生成并复制到剪贴板供 OIDC 应用使用。Client Secret 在磁盘上加密存储。
 
 > [!NOTE]
-> Public OIDC Apps can be configured by selecting the `None (Public)` option from the `Auth Method` dropdown on the OIDC App page. These OIDC Apps do not require a Client Secret but do require PKCE, which your Public OIDC App should provide.
+> 公共 OIDC 应用可以通过在 OIDC 应用页面的 `Auth Method` 下拉菜单中选择 `None (Public)` 选项来配置。这些 OIDC 应用不需要 Client Secret，但需要 PKCE，你的公共 OIDC 应用应该提供。
 
 <br>
 
@@ -237,7 +237,7 @@ Redirect URLs: https://dockhand.example.com/api/auth/oidc/callback
 ```
 
 > [!NOTE]
-> For role-based access control and group mapping features, an Enterprise license is required.
+> 基于角色的访问控制和组映射功能需要企业版许可证。
 
 <br>
 
@@ -330,14 +330,14 @@ Redirect URLs: https://jellyfin.example.com/sso/OID/redirect/Goauth
 ```
 
 > [!TIP]
-> Follow the instructions on the [Jellyfin SSO Plugin](https://github.com/9p4/jellyfin-plugin-sso) repository for how to make an SSO Login button on the Jellyfin Login page.
+> 请按照 [Jellyfin SSO Plugin](https://github.com/9p4/jellyfin-plugin-sso) 仓库中的说明，在 Jellyfin 登录页面上添加 SSO 登录按钮。
 
 <br>
 
 ## <img src="https://cdn.jsdelivr.net/gh/selfhst/icons/svg/jellyseerr.svg" width="28" /> Jellyseerr
 
 > [!CAUTION]
-> OIDC support in Jellyseerr is currently **experimental** and only available in the preview image: `fallenbagel/jellyseerr:preview-OIDC`. This feature is under active development and may have bugs or breaking changes.
+> Jellyseerr 的 OIDC 支持目前处于**实验阶段**，仅在预览镜像中可用：`fallenbagel/jellyseerr:preview-OIDC`。此功能正在积极开发中，可能存在 bug 或破坏性更改。
 
 Navigate to **Settings** from the left-hand menu in Jellyseerr. Scroll to the **OpenID Connect** section. See the [Jellyseerr OIDC Discussion](https://github.com/fallenbagel/jellyseerr/discussions/1529) for more details.
 
@@ -364,24 +364,24 @@ Redirect URLs: https://jellyseerr.example.com/login?provider=goauth&callback=tru
 ```
 
 > [!TIP]
-> - If running behind a reverse proxy, enable **Proxy Support** in Jellyseerr settings
-> - Ensure proper HTTP/HTTPS scheme configuration to avoid redirect URI issues
+> - 如果在反向代理后运行，请在 Jellyseerr 设置中启用 **Proxy Support**
+> - 确保正确配置 HTTP/HTTPS 协议以避免重定向 URI 问题
 
 > [!NOTE]
-> Jellyseerr is being merged into a unified repository at [seerr-team/seerr](https://github.com/seerr-team/seerr). This documentation will be updated once the merge is complete and OIDC support is available in the stable release.
+> Jellyseerr 正在合并到统一仓库 [seerr-team/seerr](https://github.com/seerr-team/seerr)。合并完成且稳定版本支持 OIDC 后，本文档将更新。
 
 <br>
 
 ## <img src="https://cdn.jsdelivr.net/gh/selfhst/icons/png/komodo.png" width="28" /> Komodo
 
 > [!NOTE]
-> Komodo is not automatically provisioning users via OIDC if the environment variable `KOMODO_DISABLE_USER_REGISTRATION=true` is configured. If you generally want to prevent new user registrations:
-> 1. *Temporarily* set the environment variable `KOMODO_DISABLE_USER_REGISTRATION=false`
-> 2. Restart the Komodo core container
-> 3. Login to Komodo via Goauth OIDC to create a disabled account
-> 4. Login to Komodo as admin, go to Settings -> Users, enable the newly created account with type `Oidc`. Optionally make the account admin.
-> 5. Set the environment variable back to `KOMODO_DISABLE_USER_REGISTRATION=true`
-> 6. Restart the Komodo core container
+> 如果配置了环境变量 `KOMODO_DISABLE_USER_REGISTRATION=true`，Komodo 不会通过 OIDC 自动配置用户。如果你想阻止新用户注册：
+> 1. *临时*将环境变量 `KOMODO_DISABLE_USER_REGISTRATION` 设置为 `false`
+> 2. 重启 Komodo 核心容器
+> 3. 通过 Goauth OIDC 登录 Komodo 创建一个禁用账户
+> 4. 以管理员身份登录 Komodo，进入 Settings -> Users，启用新创建的账户，类型设为 `Oidc`。可选择将其设为管理员。
+> 5. 将环境变量改回 `KOMODO_DISABLE_USER_REGISTRATION=true`
+> 6. 重启 Komodo 核心容器
 
 **Environment Variables:**
 
@@ -495,7 +495,7 @@ Redirect URLs: https://memos.example.com/auth/callback
 ```
 
 > [!NOTE]
-> Scopes are separated by spaces, **not** by commas.
+> Scopes 用空格分隔，**不是**逗号。
 
 <br>
 
@@ -554,10 +554,10 @@ Redirect URLs: https://pangolin.example.com/auth/idp/1/oidc/callback
 ```
 
 > [!NOTE]
-> The Redirect URL is displayed after creating Goauth as an identity provider in Pangolin settings. The callback path may vary if you have multiple OIDC providers configured (e.g., `/auth/idp/2/oidc/callback`).
+> 在 Pangolin 设置中创建 Goauth 作为身份提供商后会显示重定向 URL。如果你配置了多个 OIDC 提供商，回调路径可能会有所不同（例如 `/auth/idp/2/oidc/callback`）。
 
 > [!TIP]
-> You can either enable automatic user creation when configuring Goauth as an identity provider in Pangolin, or manually create users in your Pangolin organization settings using their OpenID Connect ID as the username. The ID format is `XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX` and can be found in the Goauth URL when viewing the user profile. Users will display with their email in Pangolin, not the ID.
+> 在 Pangolin 中配置 Goauth 作为身份提供商时，你可以启用自动用户创建，或者在 Pangolin 组织设置中手动创建用户，使用他们的 OpenID Connect ID 作为用户名。ID 格式为 `XXXXXXXX-XXXX-XXXX-XXXXXXXXXXXX`，可以在查看用户资料时的 Goauth URL 中找到。用户在 Pangolin 中将显示其邮箱，而不是 ID。
 
 <br>
 
@@ -586,14 +586,14 @@ Redirect URLs: https://paperless.example.com/accounts/oidc/goauth/login/callback
 ```
 
 > [!NOTE]
-> If `PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS` is set to `false` in your environment, temporarily set it to `true` to complete the initial configuration, then set it back to `false`.
+> 如果环境中设置了 `PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS` 为 `false`，请临时将其设置为 `true` 以完成初始配置，然后再改回 `false`。
 
 > [!TIP]
-> To link an existing local user to Goauth:
-> - Log in via the Goauth button on the Paperless login screen
-> - When prompted to register, do not proceed
-> - Log in with your local user and go to **Profile**
-> - Link your local account to Goauth - the Goauth email should now appear in connected 3rd party accounts
+> 将现有本地用户关联到 Goauth：
+> - 在 Paperless 登录界面点击 Goauth 按钮登录
+> - 当提示注册时，不要继续
+> - 使用本地用户登录，进入 **Profile**
+> - 将本地账户关联到 Goauth - Goauth 邮箱现在应该出现在已连接的第三方账户中
 
 <br>
 
@@ -625,10 +625,10 @@ Redirect URLs: https://portainer.example.com
 ```
 
 > [!NOTE]
-> Scopes are separated by spaces, **not** by commas.
+> Scopes 用空格分隔，**不是**逗号。
 
 <p align=center>
-<img width="1400" src="/public/screenshots/f7cf9712-4259-43ce-bde1-fbe22a447763.png" />
+<img width="1400" src="/public/screenshots/portainer-oauth.png" alt="Portainer OAuth 配置" />
 </p>
 
 <br>
@@ -668,10 +668,10 @@ Redirect URLs: https://pve.example.com
 ```
 
 > [!NOTE]
-> If you are not using Autocreate, you will need to create Groups and Users manually. PVE permissions can be quite complicated. We recommend following through their Wiki as each setup requires its own set.
+> 如果你不使用自动创建，则需要手动创建组和用户。PVE 权限可能相当复杂。我们建议按照他们的 Wiki 操作，因为每个设置都有自己的一套规则。
 
 <p align=center>
-<img width="600" src="/public/screenshots/proxmox-pve-openid.png" />
+<img width="600" src="/public/screenshots/proxmox-oidc.png" alt="Proxmox OIDC 配置" />
 </p>
 
 <br>
@@ -714,7 +714,7 @@ Redirect URLs: https://seafile.example.com/oauth/callback/
 ```
 
 > [!NOTE]
-> You will need to reboot Seafile server for the modifications to take effect.
+> 你需要重启 Seafile 服务器才能使修改生效。
 
 <br>
 
@@ -747,4 +747,4 @@ Redirect URLs: https://wikijs.example.com/login/{token-from-wikijs-strategy}/cal
 ```
 
 > [!NOTE]
-> Make sure you enabled the authentication strategy. The redirect URL contains a unique token that is displayed in the WikiJS authentication strategy view.
+> 确保你已启用身份验证策略。重定向 URL 包含一个唯一令牌，该令牌显示在 WikiJS 身份验证策略视图中。

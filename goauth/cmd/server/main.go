@@ -173,7 +173,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	authMiddleware := middleware.NewAuthMiddleware(authService, cfg)
 	// Rate limiting - configurable via environment variable (0 = disabled)
 	rateLimitPerMin := 100 // default 100 req/min
-	if envRate := os.Getenv("GOAUTH_RATE_LIMIT"); envRate != "" {
+	if envRate := os.Getenv("APP_SERVER_RATELIMIT"); envRate != "" {
 		fmt.Sscanf(envRate, "%d", &rateLimitPerMin)
 	}
 	var rateLimiter *middleware.RateLimiter

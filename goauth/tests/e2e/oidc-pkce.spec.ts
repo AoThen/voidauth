@@ -52,7 +52,7 @@ test.describe('OIDC PKCE 流程', () => {
       data: {
         id: testClientId,
         name: 'PKCE Test Client',
-        redirectUris: ['http://localhost:8080/callback'],
+        redirectUris: ['http://localhost:3000/callback'],
         scopes: ['openid', 'profile', 'email'],
         grantTypes: ['authorization_code'],
         responseTypes: ['code'],
@@ -76,7 +76,7 @@ test.describe('OIDC PKCE 流程', () => {
 
     const authParams = new URLSearchParams({
       client_id: testClientId,
-      redirect_uri: 'http://localhost:8080/callback',
+      redirect_uri: 'http://localhost:3000/callback',
       response_type: 'code',
       scope: 'openid profile email',
       state: 'pkce-test-state',
@@ -110,7 +110,7 @@ test.describe('OIDC PKCE 流程', () => {
       data: new URLSearchParams({
         grant_type: 'authorization_code',
         code: 'invalid-code',
-        redirect_uri: 'http://localhost:8080/callback',
+        redirect_uri: 'http://localhost:3000/callback',
         client_id: testClientId,
         code_verifier: codeVerifier,
       }).toString(),
@@ -132,7 +132,7 @@ test.describe('OIDC PKCE 流程', () => {
       data: new URLSearchParams({
         grant_type: 'authorization_code',
         code: 'some-code',
-        redirect_uri: 'http://localhost:8080/callback',
+        redirect_uri: 'http://localhost:3000/callback',
         client_id: testClientId,
         code_verifier: 'wrong-verifier',
       }).toString(),

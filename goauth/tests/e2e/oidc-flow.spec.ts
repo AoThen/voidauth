@@ -120,7 +120,7 @@ test.describe('OIDC 授权码流程', () => {
     }, {
       id: testClientId,
       name: 'E2E OIDC Test Client',
-      redirectUris: ['http://localhost:8080/callback'],
+      redirectUris: ['http://localhost:3000/callback'],
       scopes: ['openid', 'profile', 'email', 'offline_access'],
       grantTypes: ['authorization_code', 'refresh_token'],
       responseTypes: ['code'],
@@ -144,7 +144,7 @@ test.describe('OIDC 授权码流程', () => {
           data: {
             id: testClientId,
             name: 'E2E Fallback Client',
-            redirectUris: ['http://localhost:8080/callback'],
+            redirectUris: ['http://localhost:3000/callback'],
             scopes: ['openid', 'profile', 'email'],
             grantTypes: ['authorization_code'],
             responseTypes: ['code'],
@@ -159,7 +159,7 @@ test.describe('OIDC 授权码流程', () => {
     // 构造授权请求 URL
     const authParams = new URLSearchParams({
       client_id: testClientId,
-      redirect_uri: 'http://localhost:8080/callback',
+      redirect_uri: 'http://localhost:3000/callback',
       response_type: 'code',
       scope: 'openid profile email',
       state: 'test-state-' + Date.now(),
@@ -198,7 +198,7 @@ test.describe('OIDC 授权码流程', () => {
         data: {
           id: testClientId,
           name: 'E2E OIDC Test Client',
-          redirectUris: ['http://localhost:8080/callback'],
+          redirectUris: ['http://localhost:3000/callback'],
           scopes: ['openid', 'profile', 'email', 'offline_access'],
           grantTypes: ['authorization_code', 'refresh_token'],
           responseTypes: ['code'],
@@ -212,7 +212,7 @@ test.describe('OIDC 授权码流程', () => {
     const nonce = 'nonce-' + Date.now();
     const authParams = new URLSearchParams({
       client_id: testClientId,
-      redirect_uri: 'http://localhost:8080/callback',
+      redirect_uri: 'http://localhost:3000/callback',
       response_type: 'code',
       scope: 'openid profile email offline_access',
       state: state,
@@ -256,7 +256,7 @@ test.describe('OIDC Token 端点', () => {
       data: new URLSearchParams({
         grant_type: 'authorization_code',
         code: 'invalid-code-12345',
-        redirect_uri: 'http://localhost:8080/callback',
+        redirect_uri: 'http://localhost:3000/callback',
         client_id: testClientId || 'nonexistent-client',
       }).toString(),
     });
@@ -377,7 +377,7 @@ test.describe('OIDC 安全测试', () => {
     
     const authParams = new URLSearchParams({
       client_id: testClientId,
-      redirect_uri: 'http://localhost:8080/callback',
+      redirect_uri: 'http://localhost:3000/callback',
       response_type: 'invalid_type', // 无效的 response_type
       scope: 'openid',
     });
@@ -399,7 +399,7 @@ test.describe('OIDC 安全测试', () => {
     
     const authParams = new URLSearchParams({
       client_id: testClientId,
-      redirect_uri: 'http://localhost:8080/callback',
+      redirect_uri: 'http://localhost:3000/callback',
       response_type: 'code',
       scope: 'openid invalid_scope_xyz', // 包含无效 scope
     });
@@ -455,7 +455,7 @@ test.describe('OIDC 完整授权流程', () => {
         id: flowTestClientId,
         secret: clientSecret, // 添加客户端密钥
         name: 'E2E Flow Test Client',
-        redirectUris: ['http://localhost:8080/callback'],
+        redirectUris: ['http://localhost:3000/callback'],
         scopes: ['openid', 'profile', 'email', 'offline_access'],
         grantTypes: ['authorization_code', 'refresh_token'],
         responseTypes: ['code'],
@@ -488,7 +488,7 @@ test.describe('OIDC 完整授权流程', () => {
     // 3. 构造授权请求
     const state = 'state-flow-' + Date.now();
     const nonce = 'nonce-flow-' + Date.now();
-    const redirectUri = 'http://localhost:8080/callback';
+    const redirectUri = 'http://localhost:3000/callback';
     
     const authParams = new URLSearchParams({
       client_id: flowTestClientId,
@@ -692,7 +692,7 @@ test.describe('OIDC Refresh Token 流程', () => {
       data: {
         id: clientId,
         name: 'Refresh Token Test Client',
-        redirectUris: ['http://localhost:8080/callback'],
+        redirectUris: ['http://localhost:3000/callback'],
         scopes: ['openid', 'profile', 'email', 'offline_access'],
         grantTypes: ['authorization_code', 'refresh_token'],
         responseTypes: ['code'],

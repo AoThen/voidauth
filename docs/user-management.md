@@ -1,16 +1,16 @@
 # 用户管理
 
-用户管理功能可由管理员（**auth_admins** 组的成员）在侧边栏的[邀请](#邀请-invitations)和[用户](#用户-users)页面中访问。
+用户管理功能可由管理员（**auth_admins** 组的成员）在侧边栏的[邀请](#邀请)和[用户](#用户)页面中访问。
 
 > [!IMPORTANT]
 > 用户不能被直接创建，只能被邀请。这意味着终端用户始终可以选择自己的密码，但管理员可以选择其用户名和初始配置。
 
-## 邀请 Invitations
+## 邀请
 
 邀请创建/更新页面。
 
 <p align=center>
-<img width="500" alt="image" src="/public/screenshots/56ee1ad4-7f4c-4b49-8484-da5b6cd7256c.png" />
+<img width="500" alt="邀请页面" src="/public/screenshots/invitation.png" />
 </p>
 
 创建邀请时，可以设置未来用户的用户名和初始配置信息。未填写的字段可以由用户在接受邀请时填写，但用户名或邮箱必须至少填写一项。用户的初始安全组也可以在此选择。
@@ -20,18 +20,18 @@
 > [!IMPORTANT]
 > 被邀请的用户始终处于"已批准"状态。如果管理员设置了初始邮箱地址，该邮箱在接受邀请时将被自动验证。
 
-## 注册 Registration
+## 注册
 
 `🚧 施工中 🚧`
 
-如果 **SIGNUP** 环境变量设置为 'true'，用户可以自行注册。
+如果 **APP_UI_SIGNUPENABLED** 环境变量设置为 `true`，用户可以自行注册。
 
-## 用户 Users
+## 用户
 
 用户更新页面。
 
 <p align=center>
-<img width="500" alt="image" src="/public/screenshots/4122f143-e016-4dde-a6d2-4dbb5e3c9ef4.png" />
+<img width="500" alt="用户编辑页面" src="/public/screenshots/user-edit.png" />
 </p>
 
-在用户更新页面，可以修改用户的所有配置信息和用户名。用户的安装组、邮箱验证状态和审批状态也可以在此设置。
+在用户更新页面，可以修改用户的所有配置信息和用户名。用户的安全组、邮箱验证状态和审批状态也可以在此设置。

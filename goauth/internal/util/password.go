@@ -1,6 +1,7 @@
 package util
 
 import (
+	"crypto/rand"
 	"errors"
 
 	"github.com/nbutton23/zxcvbn-go"
@@ -60,13 +61,12 @@ func PasswordScore(password string) int {
 func GenerateRandomPassword(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
 	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[i%len(charset)]
+	if _, err := rand.Read(b); err != nil {
+		// 如果加密随机数生成失败，不应该继续
+		panic("crypto/rand failed: " + err.Error())
 	}
-	// Simple shuffle
 	for i := range b {
-		j := (i * 7 + 13) % len(b)
-		b[i], b[j] = b[j], b[i]
+		b[i] = charset[int(b[i])%len(charset)]
 	}
 	return string(b)
 }

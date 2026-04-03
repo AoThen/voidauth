@@ -720,8 +720,8 @@ func (s *TestServer) CreateClient(t *testing.T, opts ...ClientOption) *model.Cli
 	t.Helper()
 	ctx := context.Background()
 
-	redirectURIs, _ := json.Marshal([]string{"http://localhost:8080/callback"})
-	postLogoutUris, _ := json.Marshal([]string{"http://localhost:8080/logout"})
+	redirectURIs, _ := json.Marshal([]string{"http://localhost:3000/callback"})
+	postLogoutUris, _ := json.Marshal([]string{"http://localhost:3000/logout"})
 	scopes, _ := json.Marshal([]string{"openid", "profile", "email"})
 	grantTypes, _ := json.Marshal([]string{"authorization_code", "refresh_token"})
 	responseTypes, _ := json.Marshal([]string{"code"})

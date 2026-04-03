@@ -61,7 +61,7 @@ Traefik 会将请求先发送到 Goauth 进行认证，认证通过后：
 | `APP_SERVER_COOKIESAMESITE` | Cookie SameSite 属性：`strict`/`lax`/`none` | `lax` |
 | `APP_UI_APPNAME` | 应用名称 | `Goauth` |
 | `APP_UI_SIGNUPENABLED` | 允许用户注册 | `true` |
-| `GOAUTH_RATE_LIMIT` | 速率限制（次/分钟） | `100` |
+| `APP_SERVER_RATELIMIT` | 速率限制（次/分钟，0=禁用） | `100` |
 
 ## Cookie 安全配置
 

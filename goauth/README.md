@@ -61,8 +61,14 @@ volumes:
 | `APP_SERVER_HOST` | 监听地址 | `0.0.0.0` |
 | `APP_SERVER_ENVIRONMENT` | 环境 (development/production) | `development` |
 | `APP_SERVER_APPURL` | 应用 URL | - |
+| `APP_SERVER_TIMEZONE` | 时区 | `UTC` |
+| `APP_SERVER_COOKIESECURE` | Cookie Secure (auto/true/false) | `auto` |
+| `APP_SERVER_COOKIESAMESITE` | Cookie SameSite (strict/lax/none) | `lax` |
+| `APP_SERVER_RATELIMIT` | 速率限制（次/分钟，0=禁用） | `100` |
 | `APP_DATABASE_PATH` | SQLite 数据库路径 | `./data/goauth.db` |
-| `APP_OIDC_ISSUER` | OIDC Issuer URL | `http://localhost:3000` |
+| `APP_OIDC_ISSUER` | OIDC Issuer URL | 自动使用 APP_SERVER_APPURL |
+| `APP_SESSION_TTL` | 普通 Session 有效期（小时） | `24` |
+| `APP_SESSION_TTLREMEMBER` | "记住我" Session 有效期（小时） | `720` |
 | `APP_UI_APPNAME` | 应用名称 | `Goauth` |
 | `APP_UI_APPCOLOR` | 主题颜色 | `#906bc7` |
 | `APP_UI_SIGNUPENABLED` | 开放注册 | `true` |
@@ -70,6 +76,8 @@ volumes:
 | `APP_SECURITY_PASSWORDMINSCORE` | 密码强度分数 (0-4) | `3` |
 | `APP_SECURITY_LOGINMAXATTEMPTS` | 登录失败次数限制 | `10` |
 | `APP_SECURITY_LOGINBLOCKDURATION` | 封禁时长 (分钟) | `30` |
+| `APP_SECURITY_TOTPMAXATTEMPTS` | TOTP 最大尝试次数 | `5` |
+| `APP_SECURITY_AUDITLOGRETENTION` | 审计日志保留天数 | `90` |
 | `APP_LOGGING_LEVEL` | 日志级别 | `info` |
 
 ### 配置文件

@@ -1,4 +1,4 @@
-# Getting Started
+# 快速开始
 
 ## 快速开始
 
@@ -157,8 +157,8 @@ goauth --version
 
 有两种方式保护你的应用：
 
-1. **OIDC 集成** - 如果应用支持 OIDC，参考 [OIDC Setup](OIDC-Setup.md)
-2. **ProxyAuth** - 如果应用不支持 OIDC，参考 [ProxyAuth Setup](ProxyAuth-and-Trusted-Header-SSO-Setup.md)
+1. **OIDC 集成** - 如果应用支持 OIDC，参考 [OIDC 应用设置](oidc-setup.md)
+2. **ProxyAuth** - 如果应用不支持 OIDC，参考 [代理认证](proxy-auth.md)
 
 ## 安全特性
 
@@ -170,13 +170,13 @@ goauth --version
 - **加密存储** - 敏感数据自动加密存储
 - **审计日志** - 关键操作记录
 
-## 与完整版区别
+## 特性概览
 
-| 功能 | Goauth | Goauth (Full) |
-|------|--------|-------------------|
-| 数据库 | SQLite | PostgreSQL/SQLite |
-| 前端 | Alpine.js | Angular |
-| 邮件 | ❌ | ✅ |
-| Passkey | ❌ | ✅ |
-| 国际化 | 仅中文 | 多语言 |
-| Consent 页面 | 自动授权 | 用户确认 |
+| 功能 | 支持 |
+|------|------|
+| 数据库 | SQLite |
+| 前端 | Alpine.js |
+| 邮件 | ❌ (通过 CLI 重置密码) |
+| Passkey | ❌ |
+| 国际化 | 仅中文 |
+| Consent 页面 | 自动授权 |
