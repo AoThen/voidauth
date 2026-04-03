@@ -84,7 +84,8 @@ export default defineConfig({
   // 自动启动服务器
   webServer: {
     // 在启动服务器前先清理数据库，确保干净的测试环境
-    command: 'cd ../.. && rm -rf data/*.db data/*.db-shm data/*.db-wal && APP_SECURITY_LOGINMAXATTEMPTS=1000 APP_SERVER_RATELIMIT=0 APP_SECURITY_AUTOAPPROVEUSERS=true ./bin/goauth serve',
+    // 使用绝对路径确保清理正确的目录
+    command: 'bash -c "cd /home/git/working/Goauth/goauth && rm -rf data/goauth.db* && APP_SECURITY_LOGINMAXATTEMPTS=1000 APP_SERVER_RATELIMIT=0 APP_SECURITY_AUTOAPPROVEUSERS=true ./bin/goauth serve"',
     port: 3000,
     timeout: 30000,
     reuseExistingServer: false,

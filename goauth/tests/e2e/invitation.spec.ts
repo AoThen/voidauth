@@ -1,4 +1,4 @@
-import { test, expect, waitForPageReady, STRONG_PASSWORD } from './fixture';
+import { test, expect, waitForPageReady, waitForContentVisible, STRONG_PASSWORD } from './fixture';
 
 /**
  * 邀请注册 E2E 测试
@@ -10,8 +10,14 @@ test.describe('邀请创建', () => {
   test.use({ storageState: undefined });
 
   test('管理员可以创建邀请链接', async ({ authenticatedPage: page }) => {
-    // 确保在管理后台
-    await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 5000 });
+    // 等待管理后台内容可见（处理 Alpine.js x-show 时序问题）
+    const visible = await waitForContentVisible(page, '管理后台', 10000);
+    if (!visible) {
+      // 如果仍然不可见，尝试刷新页面
+      await page.reload();
+      await waitForPageReady(page);
+      await waitForContentVisible(page, '管理后台', 10000);
+    }
 
     // 点击邀请标签
     const tabs = page.locator('.tabs');

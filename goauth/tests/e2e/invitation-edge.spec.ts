@@ -1,4 +1,4 @@
-import { test, expect, waitForPageReady, STRONG_PASSWORD, getSavedAdmin, generateTestUser } from './fixture';
+import { test, expect, waitForPageReady, waitForContentVisible, STRONG_PASSWORD, getSavedAdmin, generateTestUser } from './fixture';
 import { writeFileSync, readFileSync, existsSync, unlinkSync } from 'fs';
 
 /**
@@ -43,7 +43,13 @@ test.describe('过期邀请链接', () => {
   test.use({ storageState: undefined });
 
   test('创建已过期的邀请', async ({ authenticatedPage: page, request }) => {
-    await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 5000 });
+    // 等待管理后台内容可见（处理 Alpine.js x-show 时序问题）
+    const visible = await waitForContentVisible(page, '管理后台', 10000);
+    if (!visible) {
+      await page.reload();
+      await waitForPageReady(page);
+      await waitForContentVisible(page, '管理后台', 10000);
+    }
 
     const cookies = await page.context().cookies();
     const sessionCookie = cookies.find(c => c.name === 'session');

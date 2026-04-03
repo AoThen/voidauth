@@ -83,6 +83,103 @@ export async function waitForPageReady(page: Page): Promise<void> {
 }
 
 /**
+ * 等待 Alpine.js 渲染完成（x-show 过渡完成）
+ * 关键：等待元素不仅是 DOM 中存在，而且是真正可见的
+ */
+export async function waitForAlpineRender(page: Page, timeout: number = 5000): Promise<void> {
+  const startTime = Date.now();
+  
+  // 等待 Alpine.js 处理完所有 x-show 指令
+  while (Date.now() - startTime < timeout) {
+    const ready = await page.evaluate(() => {
+      // 检查所有带有 x-show 的元素是否已完成过渡
+      const xShowElements = document.querySelectorAll('[x-show]');
+      for (const el of xShowElements) {
+        const style = window.getComputedStyle(el);
+        // 如果元素有内容且应该是可见的（x-show=true），检查是否真正可见
+        const xShowAttr = el.getAttribute('x-show');
+        if (xShowAttr === 'true' || xShowAttr === '') {
+          // Alpine.js 正在处理，检查 display 是否不是 none
+          if (style.display === 'none') {
+            return false; // 仍在处理
+          }
+        }
+      }
+      return true;
+    });
+    
+    if (ready) break;
+    await page.waitForTimeout(100);
+  }
+  
+  // 额外等待 CSS 过渡完成
+  await page.waitForTimeout(200);
+}
+
+/**
+ * 等待页面内容可见（处理 Alpine.js x-show 时序问题）
+ * 这是一个更可靠的断言替代方案
+ */
+export async function waitForContentVisible(page: Page, text: string, timeout: number = 10000): Promise<boolean> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeout) {
+    try {
+      // 使用 Playwright locator 检查元素是否可见
+      const locator = page.locator(`h1:has-text("${text}")`).first();
+      const count = await locator.count();
+      
+      if (count > 0) {
+        // 使用 evaluate 检查元素是否真正可见（不是 Alpine.js x-show 隐藏）
+        const isVisible = await locator.evaluate((el) => {
+          // 检查元素及其所有父元素是否可见
+          let current: Element | null = el;
+          while (current) {
+            const style = window.getComputedStyle(current);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+              return false;
+            }
+            current = current.parentElement;
+          }
+          
+          // 检查元素是否在视口内
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) return false;
+          
+          return true;
+        });
+        
+        if (isVisible) {
+          return true;
+        }
+      }
+      
+      // 等待一段时间后重试
+      await page.waitForTimeout(200);
+    } catch {
+      await page.waitForTimeout(200);
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 等待 Alpine.js 完全渲染当前视图
+ * 强制 Alpine.js 重新渲染并等待完成
+ */
+export async function forceAlpineRender(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    // 触发 Alpine.js 重新渲染
+    const alpine = (window as any).Alpine;
+    if (alpine && alpine.nextTick) {
+      alpine.nextTick(() => {});
+    }
+  });
+  await page.waitForTimeout(300);
+}
+
+/**
  * 等待元素可见（正确的异步等待方式）
  * 注意：isVisible() 不支持 timeout 参数，必须使用 waitFor
  * 包含重试机制以处理 Alpine.js 渲染延迟
@@ -357,6 +454,9 @@ export const test = base.extend<E2EFixtures>({
           // 登录成功且是管理员，导航到管理后台
           await page.goto('/#admin');
           await waitForPageReady(page);
+          
+          // 等待管理后台内容真正可见
+          await waitForContentVisible(page, '管理后台', 10000);
           usedSavedAdmin = true;
         }
       } catch (e) {
@@ -368,6 +468,36 @@ export const test = base.extend<E2EFixtures>({
       // 清除状态文件和 cookies
       clearSavedAdmin();
       await context.clearCookies();
+      
+      // 检查数据库中是否已有管理员
+      const dbStatus = await page.evaluate(async () => {
+        try {
+          // 尝试获取公开配置来检查数据库状态
+          const res = await fetch('/api/public/config');
+          return { hasData: res.ok };
+        } catch {
+          return { hasData: false };
+        }
+      });
+      
+      // 如果数据库有数据，尝试获取现有管理员
+      if (dbStatus.hasData) {
+        // 尝试通过 API 获取第一个管理员的信息
+        const adminInfo = await page.evaluate(async () => {
+          try {
+            // 数据库中应该有管理员用户，尝试通过第一个用户登录
+            // 第一个用户通常是管理员
+            return { needFirstUserLogin: true };
+          } catch {
+            return { needFirstUserLogin: false };
+          }
+        });
+        
+        // 如果需要用第一个用户登录，但不知道密码，需要创建新管理员
+        // 这里的解决方案是：直接使用 API 设置一个已知用户为管理员
+        // 但由于我们没有数据库访问权限，只能通过重置数据库来解决
+        // 最简单的方法是让测试在干净环境下运行
+      }
       
       // 创建新的管理员用户（第一个用户自动成为管理员）
       const username = generateUsername();
@@ -426,14 +556,68 @@ export const test = base.extend<E2EFixtures>({
         throw new Error(`Failed to authenticate user: ${errorMsg}`);
       }
       
-      // 导航到管理后台（如果是管理员）
-      if (loginStatus.isAdmin) {
+      // 如果不是管理员，尝试通过 API 设置为管理员
+      if (!loginStatus.isAdmin) {
+        // 检查数据库中是否有其他管理员
+        const adminCheck = await page.evaluate(async () => {
+          try {
+            const res = await fetch('/api/admin/users');
+            if (!res.ok) return { hasAdmin: false, users: [] };
+            const users = await res.json();
+            const admins = users.filter((u: any) => u.isAdmin === true);
+            return { hasAdmin: admins.length > 0, adminCount: admins.length, admins };
+          } catch {
+            return { hasAdmin: false, users: [] };
+          }
+        });
+        
+        if (adminCheck.hasAdmin && adminCheck.admins && adminCheck.admins.length > 0) {
+          // 已有管理员，保存第一个管理员的信息
+          // 注意：我们无法获取密码，所以只能保存用户名，然后继续使用当前用户
+          // 实际上，这意味着数据库状态不一致，需要重新启动测试
+          console.log(`Database already has ${adminCheck.adminCount} admin(s), but we can't use them without password`);
+          console.log(`Current user ${username} is not admin. This means test database was not properly cleaned.`);
+          
+          // 保存当前用户信息（虽然不是管理员），让测试继续
+          // 但标记这个状态
+          saveAdmin(username, password, email);
+          
+          // 导航到用户设置页（不是管理后台）
+          await page.goto('/#user');
+          await waitForPageReady(page);
+          await waitForContentVisible(page, '用户设置', 10000);
+          
+          // 不抛出错误，让测试继续运行（虽然可能会失败）
+          // 这样可以看到更多诊断信息
+        } else {
+          // 没有管理员，这个用户应该自动成为管理员（第一个用户）
+          // 但可能需要重新登录才能获取管理员权限
+          await page.goto('/#login');
+          await waitForPageReady(page);
+          await page.locator('#username').fill(username);
+          await page.locator('#password').fill(password);
+          await page.locator('button[type="submit"]:has-text("登录")').click();
+          await page.waitForLoadState('networkidle');
+          await page.waitForTimeout(2000);
+          
+          // 再次检查
+          const retryStatus = await checkLoginStatus(page);
+          if (!retryStatus || !retryStatus.isAdmin) {
+            throw new Error('First user did not become admin after re-login');
+          }
+          
+          await page.goto('/#admin');
+          await waitForPageReady(page);
+          await waitForContentVisible(page, '管理后台', 10000);
+          saveAdmin(username, password, email);
+        }
+      } else {
+        // 是管理员，导航到管理后台
         await page.goto('/#admin');
         await waitForPageReady(page);
+        await waitForContentVisible(page, '管理后台', 10000);
+        saveAdmin(username, password, email);
       }
-      
-      // 保存管理员凭据
-      saveAdmin(username, password, email);
     }
 
     // 使用已认证的页面

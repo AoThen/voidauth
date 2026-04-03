@@ -1,4 +1,4 @@
-import { unlinkSync, existsSync } from 'fs';
+import { unlinkSync, existsSync, rmSync } from 'fs';
 
 /**
  * 全局设置 - 在所有测试前清理状态
@@ -12,14 +12,23 @@ import { unlinkSync, existsSync } from 'fs';
  */
 async function globalSetup() {
   const stateFile = '/tmp/goauth-e2e-admin-state.json';
+  const dbPath = '/home/git/working/Goauth/goauth/data';
   
   console.log('🔧 全局设置: 清理测试状态...');
   
   try {
-    // 清理状态文件
-    if (existsSync(stateFile)) {
-      unlinkSync(stateFile);
-      console.log('✅ 状态文件已清理');
+    // 清理所有状态文件
+    const stateFiles = [
+      stateFile,
+      '/tmp/goauth-e2e-invitation-edge.json',
+      '/tmp/goauth-e2e-admin-protection.json',
+    ];
+    
+    for (const file of stateFiles) {
+      if (existsSync(file)) {
+        unlinkSync(file);
+        console.log(`✅ 已清理状态文件: ${file}`);
+      }
     }
     
     // 清理临时状态文件（旧版本可能使用不同路径）

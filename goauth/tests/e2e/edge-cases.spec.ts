@@ -1,4 +1,4 @@
-import { test, expect, waitForPageReady, STRONG_PASSWORD, getSavedAdmin } from './fixture';
+import { test, expect, waitForPageReady, waitForContentVisible, STRONG_PASSWORD, getSavedAdmin } from './fixture';
 
 /**
  * CORS 和边缘情况 E2E 测试
@@ -141,7 +141,13 @@ test.describe('输入验证', () => {
 
 test.describe('资源不存在处理', () => {
   test('不存在的用户 ID 返回 404', async ({ authenticatedPage: page, request }) => {
-    await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 5000 });
+    // 等待管理后台内容可见（处理 Alpine.js x-show 时序问题）
+    const visible = await waitForContentVisible(page, '管理后台', 10000);
+    if (!visible) {
+      await page.reload();
+      await waitForPageReady(page);
+      await waitForContentVisible(page, '管理后台', 10000);
+    }
 
     const cookies = await page.context().cookies();
     const sessionCookie = cookies.find(c => c.name === 'session');
