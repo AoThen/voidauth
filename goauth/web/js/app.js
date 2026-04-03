@@ -100,7 +100,7 @@ function app() {
       }
 
       const hash = window.location.hash.slice(1);
-      if (hash && ['login', 'register', 'admin', 'user', 'mfa'].includes(hash)) {
+      if (hash && ['login', 'register', 'admin', 'user', 'mfa', 'mfa-setup'].includes(hash)) {
         this.page = hash;
       }
     },

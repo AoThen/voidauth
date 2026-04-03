@@ -76,6 +76,7 @@ type SecurityConfig struct {
 	TotpMaxAttempts      int    `koanf:"totpmaxattempts"`      // TOTP 最大尝试次数
 	AuditLogRetention    int    `koanf:"auditlogretention"`    // 审计日志保留天数
 	LoginAttemptCleanup  int    `koanf:"loginattemptcleanup"`  // 登录尝试记录清理间隔（小时）
+	AutoApproveUsers     bool   `koanf:"autoapproveusers"`     // 自动批准所有注册用户（用于测试环境）
 }
 
 type UIConfig struct {
@@ -147,6 +148,7 @@ func Load(configPath string) (*Config, error) {
 			TotpMaxAttempts:     5,
 			AuditLogRetention:   90,  // 默认保留 90 天
 			LoginAttemptCleanup: 24,  // 默认每 24 小时清理一次
+			AutoApproveUsers:    false, // 默认不自动批准
 		},
 		UI: UIConfig{
 			AppName:       "Goauth",

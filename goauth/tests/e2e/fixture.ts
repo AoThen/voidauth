@@ -54,7 +54,7 @@ export function saveAdmin(username: string, password: string, email: string): vo
 }
 
 /**
- * 等待页面完全加载（包括 Alpine.js 初始化）
+ * 等待页面完全加载（包括 Alpine.js 初始化和渲染）
  */
 export async function waitForPageReady(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
@@ -69,8 +69,51 @@ export async function waitForPageReady(page: Page): Promise<void> {
     // Alpine.js 可能从 CDN 加载较慢，继续执行
   });
   
-  // 额外等待确保 DOM 更新
-  await page.waitForTimeout(500);
+  // 等待 Alpine.js 完成渲染 - 确保页面内容稳定
+  // 检查 h1 元素是否存在且内容不为空
+  await page.waitForFunction(() => {
+    const h1 = document.querySelector('h1');
+    return h1 && h1.textContent && h1.textContent.trim().length > 0;
+  }, { timeout: 5000 }).catch(() => {
+    // 如果没有 h1，继续执行
+  });
+  
+  // 额外等待确保 DOM 更新和动画完成
+  await page.waitForTimeout(300);
+}
+
+/**
+ * 等待元素可见（正确的异步等待方式）
+ * 注意：isVisible() 不支持 timeout 参数，必须使用 waitFor
+ * 包含重试机制以处理 Alpine.js 渲染延迟
+ */
+export async function waitForVisible(page: Page, selector: string, timeout: number = 5000): Promise<boolean> {
+  const startTime = Date.now();
+  const retryInterval = 500;
+  
+  while (Date.now() - startTime < timeout) {
+    try {
+      const locator = page.locator(selector).first();
+      await locator.waitFor({ state: 'visible', timeout: retryInterval });
+      return true;
+    } catch {
+      // 继续重试
+      await page.waitForTimeout(100);
+    }
+  }
+  
+  // 最终检查
+  try {
+    const count = await page.locator(selector).count();
+    if (count > 0) {
+      const isVisible = await page.locator(selector).first().isVisible();
+      return isVisible;
+    }
+  } catch {
+    // 忽略错误
+  }
+  
+  return false;
 }
 
 /**
@@ -84,7 +127,7 @@ async function registerAndLogin(page: Page, username: string, password: string, 
   
   // 点击注册链接
   const registerLink = page.locator('a:has-text("注册")');
-  if (await registerLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await waitForVisible(page, 'a:has-text("注册")', 3000)) {
     await registerLink.click();
     await page.waitForTimeout(1000);
   } else {
@@ -114,7 +157,7 @@ async function registerAndLogin(page: Page, username: string, password: string, 
   await page.waitForTimeout(2000);
   
   // 检查是否注册成功（跳转到登录页）
-  const onLoginPage = await page.locator('h1:has-text("登录")').isVisible({ timeout: 5000 }).catch(() => false);
+  const onLoginPage = await waitForVisible(page, 'h1:has-text("登录")', 5000);
   
   if (!onLoginPage) {
     // 检查是否有错误消息
@@ -144,7 +187,7 @@ async function registerAndLogin(page: Page, username: string, password: string, 
   await page.waitForTimeout(3000);
   
   // 检查登录是否成功
-  const loginSuccess = await page.locator('h1:has-text("管理后台"), h1:has-text("用户设置")').first().isVisible({ timeout: 5000 }).catch(() => false);
+  const loginSuccess = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 5000);
   
   if (!loginSuccess) {
     // 检查错误消息
@@ -235,7 +278,7 @@ export const test = base.extend<E2EFixtures>({
     await waitForPageReady(page);
 
     // 检查是否已登录 - 使用管理后台标题判断
-    let alreadyLoggedIn = await page.locator('h1:has-text("管理后台"), h1:has-text("用户设置")').first().isVisible({ timeout: 2000 }).catch(() => false);
+    let alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 2000);
 
     // 如果已登录，直接使用
     if (alreadyLoggedIn) {
@@ -248,37 +291,59 @@ export const test = base.extend<E2EFixtures>({
 
     // 如果有保存的管理员凭据，尝试登录
     if (savedAdmin) {
-      // 等待登录表单可见
-      const loginFormVisible = await page.locator('#username').isVisible({ timeout: 3000 }).catch(() => false);
-      if (!loginFormVisible) {
-        await page.goto('/#login');
-        await waitForPageReady(page);
-      }
-
-      // 需要登录
-      await page.locator('#username').fill(savedAdmin.username);
-      await page.locator('#password').fill(savedAdmin.password);
-      await page.locator('button[type="submit"]:has-text("登录")').click();
-
-      await page.waitForTimeout(2000);
+      // 清除所有 cookies 确保干净状态
+      await context.clearCookies();
       
-      // 检查登录是否成功
-      alreadyLoggedIn = await page.locator('h1:has-text("管理后台"), h1:has-text("用户设置")').first().isVisible({ timeout: 5000 }).catch(() => false);
+      // 刷新页面确保未认证状态
+      await page.goto('/');
+      await waitForPageReady(page);
       
-      // 如果登录成功，直接使用
-      if (alreadyLoggedIn) {
-        await use(page);
-        return;
+      // 导航到登录页面
+      await page.goto('/#login');
+      await waitForPageReady(page);
+      
+      // 等待登录表单可见（确保页面正确渲染）
+      try {
+        await page.locator('#username').waitFor({ state: 'visible', timeout: 5000 });
+      } catch {
+        // 如果登录表单不可见，可能是页面状态问题，创建新用户
+        console.log('Login form not visible, creating new user');
+        savedAdmin = null;
       }
       
-      // 登录失败，继续创建新用户
-      console.log(`Login failed for ${savedAdmin.username}, creating new admin`);
+      if (savedAdmin) {
+        // 填写登录表单
+        await page.locator('#username').fill(savedAdmin.username);
+        await page.locator('#password').fill(savedAdmin.password);
+        await page.locator('button[type="submit"]:has-text("登录")').click();
+
+        // 等待页面完全加载
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(1000);
+        
+        // 检查登录是否成功
+        alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 10000);
+        
+        // 如果登录成功，直接使用
+        if (alreadyLoggedIn) {
+          await use(page);
+          return;
+        }
+        
+        // 登录失败，继续创建新用户
+        const errorMsg = await page.locator('.error').textContent({ timeout: 1000 }).catch(() => '');
+        console.log(`Login failed for ${savedAdmin.username}: ${errorMsg}`);
+      }
     }
 
     // 创建新的管理员用户（清空数据库后的第一个用户自动成为管理员）
     const username = generateUsername();
     const password = STRONG_PASSWORD;
     const email = generateEmail(username);
+    
+    // 清除所有 cookies 确保未认证状态
+    const browserContext = page.context();
+    await browserContext.clearCookies();
     
     // 导航到注册页面
     await page.goto('/#register');
@@ -308,10 +373,12 @@ export const test = base.extend<E2EFixtures>({
     await page.locator('#password').fill(password);
     await page.locator('button[type="submit"]:has-text("登录")').click();
     
-    await page.waitForTimeout(2000);
+    // 等待页面完全加载
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
     
-    // 检查登录是否成功
-    alreadyLoggedIn = await page.locator('h1:has-text("管理后台"), h1:has-text("用户设置")').first().isVisible({ timeout: 5000 }).catch(() => false);
+    // 检查登录是否成功 - 使用更长的超时
+    alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 10000);
     
     if (!alreadyLoggedIn) {
       // 如果还是失败，抛出错误
@@ -352,7 +419,7 @@ export async function registerUser(page: Page, user: TestUser): Promise<void> {
   await waitForPageReady(page);
   
   const registerLink = page.locator('a:has-text("注册")');
-  if (await registerLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+  if (await waitForVisible(page, 'a:has-text("注册")', 3000)) {
     await registerLink.click();
     await page.waitForTimeout(500);
   }
@@ -381,7 +448,7 @@ export async function loginUser(page: Page, username: string, password: string):
   await page.waitForTimeout(500);
 
   // 检查是否已经在登录状态
-  const loggedIn = await page.locator('button:has-text("退出登录")').isVisible({ timeout: 2000 }).catch(() => false);
+  const loggedIn = await waitForVisible(page, 'button:has-text("退出登录")', 2000);
   if (loggedIn) {
     return; // 已经登录
   }
@@ -465,8 +532,7 @@ export async function switchAdminTab(
  * 检查是否显示错误消息
  */
 export async function hasErrorMessage(page: Page): Promise<boolean> {
-  const errorElement = page.locator('.error');
-  return await errorElement.isVisible({ timeout: 3000 }).catch(() => false);
+  return await waitForVisible(page, '.error', 3000);
 }
 
 /**

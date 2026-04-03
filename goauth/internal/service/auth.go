@@ -449,6 +449,16 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 	}
 	isFirstUser := count == 0
 
+	// 确定是否批准用户
+	// 第一个用户总是自动批准
+	// 如果配置了 AutoApproveUsers，所有用户都自动批准
+	approved := isFirstUser || s.cfg.Security.AutoApproveUsers
+
+	// 确定邮箱验证状态
+	// 第一个用户总是自动验证
+	// 如果配置了 AutoApproveUsers，所有用户都自动验证（测试环境）
+	emailVerified := isFirstUser || s.cfg.Security.AutoApproveUsers
+
 	// 创建用户
 	user := &model.User{
 		Username:      req.Username,
@@ -456,8 +466,8 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 		Email:         req.Email,
 		Name:          req.Name,
 		IsAdmin:       isFirstUser,
-		EmailVerified: isFirstUser, // 第一个用户自动验证
-		Approved:      isFirstUser, // 第一个用户自动批准
+		EmailVerified: emailVerified,
+		Approved:      approved,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {

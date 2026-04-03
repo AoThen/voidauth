@@ -416,16 +416,11 @@ func setupRouter(
 	}
 	router.Use(middleware.CORS(corsOrigins))
 
-	// Apply rate limiting if configured
-	if rateLimiter != nil {
-		router.Use(middleware.RateLimit(rateLimiter))
-	}
-
-	// Health check
+	// Health check (no rate limiting)
 	router.GET("/health", healthHandler.Health)
 	router.GET("/ready", healthHandler.Ready)
 
-	// Serve static files
+	// Serve static files (no rate limiting - allows login page to always load)
 	router.Static("/css", "./web/css")
 	router.Static("/js", "./web/js")
 	router.Static("/assets", "./web/assets")
@@ -439,6 +434,11 @@ func setupRouter(
 	// API routes
 	api := router.Group("/api")
 	{
+		// Apply rate limiting only to API routes (not static files)
+		if rateLimiter != nil {
+			api.Use(middleware.RateLimit(rateLimiter))
+		}
+
 		// CSRF 保护（跳过登录、注册和登出端点）
 		api.Use(middleware.CSRF(middleware.CSRFConfig{
 			SkipPaths: []string{
