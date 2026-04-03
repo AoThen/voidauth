@@ -1,7 +1,7 @@
 import { test as base, Page, expect, BrowserContext } from '@playwright/test';
 import { execSync } from 'child_process';
 import { resolve } from 'path';
-import { existsSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
 
 // 强密码，满足 zxcvbn 3+ 分数要求
 const STRONG_PASSWORD = 'Correct-Horse-Battery-Staple-2024!';
@@ -285,6 +285,35 @@ async function checkLoginStatus(page: Page): Promise<{ isLoggedIn: boolean; isAd
 }
 
 /**
+ * 检查数据库中是否有管理员用户
+ */
+async function hasExistingAdmin(page: Page): Promise<boolean> {
+  try {
+    const result = await page.evaluate(async () => {
+      try {
+        // 尝试获取公开信息，如果数据库有用户会有响应
+        const res = await fetch('/api/public/config');
+        return res.ok;
+      } catch {
+        return false;
+      }
+    });
+    return result;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 清除保存的管理员凭据
+ */
+function clearSavedAdmin(): void {
+  if (existsSync(STATE_FILE)) {
+    unlinkSync(STATE_FILE);
+  }
+}
+
+/**
  * Goauth 测试基础 Fixture
  * 
  * 提供以下功能：
@@ -303,6 +332,7 @@ export const test = base.extend<E2EFixtures>({
 
     // 检查是否已有保存的管理员凭据
     const savedAdmin = getSavedAdmin();
+    let usedSavedAdmin = false;
 
     if (savedAdmin) {
       // 尝试登录已保存的管理员
@@ -323,80 +353,88 @@ export const test = base.extend<E2EFixtures>({
         // 通过 API 验证登录状态
         const loginStatus = await checkLoginStatus(page);
         
-        if (loginStatus && loginStatus.isLoggedIn) {
-          // 登录成功，等待 Alpine.js 渲染
-          await page.waitForTimeout(500);
-          
-          // 如果是管理员，导航到管理后台
-          if (loginStatus.isAdmin) {
-            await page.goto('/#admin');
-            await waitForPageReady(page);
-          }
-          
-          await use(page);
-          return;
+        if (loginStatus && loginStatus.isLoggedIn && loginStatus.isAdmin) {
+          // 登录成功且是管理员，导航到管理后台
+          await page.goto('/#admin');
+          await waitForPageReady(page);
+          usedSavedAdmin = true;
         }
-        
-        // 登录失败，清除 cookies 继续创建新用户
-        await context.clearCookies();
-        console.log(`Login failed for ${savedAdmin.username}, creating new admin user`);
       } catch (e) {
-        console.log(`Login error: ${e}, creating new admin user`);
-        await context.clearCookies();
+        console.log(`Login error: ${e}`);
       }
     }
 
-    // 创建新的管理员用户（第一个用户自动成为管理员）
-    const username = generateUsername();
-    const password = STRONG_PASSWORD;
-    const email = generateEmail(username);
-    
-    // 导航到注册页面
-    await page.goto('/#register');
-    await waitForPageReady(page);
-    
-    // 等待注册表单
-    await page.locator('#reg-username').waitFor({ state: 'visible', timeout: 10000 });
-    
-    await page.locator('#reg-username').fill(username);
-    await page.locator('#reg-email').fill(email);
-    await page.locator('#reg-password').fill(password);
-    await page.locator('#reg-confirm').fill(password);
-    await page.locator('button:has-text("注册")').click();
-    
-    // 等待注册完成
-    await page.waitForTimeout(2000);
-    
-    // 导航到登录页
-    await page.goto('/#login');
-    await waitForPageReady(page);
-    
-    // 等待登录表单
-    await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
-    
-    // 登录
-    await page.locator('#username').fill(username);
-    await page.locator('#password').fill(password);
-    await page.locator('button[type="submit"]:has-text("登录")').click();
-    
-    // 等待登录请求完成
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
-    
-    // 通过 API 验证登录状态
-    const loginStatus = await checkLoginStatus(page);
-    
-    if (!loginStatus || !loginStatus.isLoggedIn) {
-      const errorMsg = await page.locator('.error').textContent({ timeout: 1000 }).catch(() => '');
-      throw new Error(`Failed to authenticate user: ${errorMsg}`);
+    if (!usedSavedAdmin) {
+      // 清除状态文件和 cookies
+      clearSavedAdmin();
+      await context.clearCookies();
+      
+      // 创建新的管理员用户（第一个用户自动成为管理员）
+      const username = generateUsername();
+      const password = STRONG_PASSWORD;
+      const email = generateEmail(username);
+      
+      // 首先导航到首页，确保页面完全加载
+      await page.goto('/');
+      await waitForPageReady(page);
+      
+      // 等待页面稳定后，通过点击注册链接导航到注册页面
+      const registerLink = page.locator('a:has-text("注册")');
+      if (await registerLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await registerLink.click();
+        await page.waitForTimeout(1000);
+      } else {
+        // 如果注册链接不可见，可能是因为没有注册权限
+        // 直接导航到 hash 路由
+        await page.goto('/#register');
+        await page.waitForTimeout(1000);
+      }
+      
+      // 等待注册表单
+      await page.locator('#reg-username').waitFor({ state: 'visible', timeout: 10000 });
+      
+      await page.locator('#reg-username').fill(username);
+      await page.locator('#reg-email').fill(email);
+      await page.locator('#reg-password').fill(password);
+      await page.locator('#reg-confirm').fill(password);
+      await page.locator('button:has-text("注册")').click();
+      
+      // 等待注册完成
+      await page.waitForTimeout(2000);
+      
+      // 导航到登录页
+      await page.goto('/#login');
+      await waitForPageReady(page);
+      
+      // 等待登录表单
+      await page.locator('#username').waitFor({ state: 'visible', timeout: 10000 });
+      
+      // 登录
+      await page.locator('#username').fill(username);
+      await page.locator('#password').fill(password);
+      await page.locator('button[type="submit"]:has-text("登录")').click();
+      
+      // 等待登录请求完成
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
+      
+      // 通过 API 验证登录状态
+      const loginStatus = await checkLoginStatus(page);
+      
+      if (!loginStatus || !loginStatus.isLoggedIn) {
+        const errorMsg = await page.locator('.error').textContent({ timeout: 1000 }).catch(() => '');
+        throw new Error(`Failed to authenticate user: ${errorMsg}`);
+      }
+      
+      // 导航到管理后台（如果是管理员）
+      if (loginStatus.isAdmin) {
+        await page.goto('/#admin');
+        await waitForPageReady(page);
+      }
+      
+      // 保存管理员凭据
+      saveAdmin(username, password, email);
     }
-    
-    // 导航到管理后台
-    await page.goto('/#admin');
-    await waitForPageReady(page);
-    
-    // 保存管理员凭据
-    saveAdmin(username, password, email);
 
     // 使用已认证的页面
     await use(page);
