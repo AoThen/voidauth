@@ -21,7 +21,7 @@ build:
 
 # Run the application
 run:
-	go run ./cmd/server
+	go run ./cmd/server serve
 
 # Run tests
 test:
