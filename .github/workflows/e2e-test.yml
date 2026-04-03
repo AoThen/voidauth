@@ -1,0 +1,288 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, master, mod]
+    paths:
+      - 'goauth/**'
+      - '.github/workflows/e2e-test.yml'
+  pull_request:
+    branches: [main, master, mod]
+    paths:
+      - 'goauth/**'
+      - '.github/workflows/e2e-test.yml'
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run with debug logging'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  GO_VERSION: '1.24'
+  NODE_VERSION: '20'
+  APP_PORT: 3000
+
+jobs:
+  # ===========================================
+  # 构建阶段：编译 Go 应用
+  # ===========================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: goauth/go.sum
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc musl-dev sqlite3 libsqlite3-dev
+
+      - name: Build binary
+        working-directory: goauth
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=1 go build -ldflags="-s -w" -o bin/goauth ./cmd/server
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: goauth-binary
+          path: goauth/bin/goauth
+          retention-days: 1
+
+  # ===========================================
+  # 单元测试 + 集成测试
+  # ===========================================
+  unit-and-integration-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: goauth/go.sum
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc musl-dev sqlite3 libsqlite3-dev
+
+      - name: Run unit tests
+        working-directory: goauth
+        run: |
+          mkdir -p logs
+          go test -v -race -coverprofile=coverage-unit.out ./internal/... 2>&1 | tee logs/unit-tests.log
+
+      - name: Run integration tests
+        working-directory: goauth
+        run: |
+          go test -v -race -coverprofile=coverage-integration.out ./tests/integration/... 2>&1 | tee logs/integration-tests.log
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-integration-logs
+          path: goauth/logs/
+          retention-days: 7
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            goauth/coverage-unit.out
+            goauth/coverage-integration.out
+          retention-days: 7
+
+  # ===========================================
+  # E2E 测试（Playwright）
+  # ===========================================
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: goauth-binary
+          path: goauth/bin
+
+      - name: Make binary executable
+        run: chmod +x goauth/bin/goauth
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: goauth/tests/e2e/package-lock.json
+
+      - name: Install Playwright dependencies
+        working-directory: goauth/tests/e2e
+        run: |
+          npm ci
+          npx playwright install chromium
+          npx playwright install-deps chromium
+
+      - name: Create data directory
+        run: mkdir -p goauth/data
+
+      - name: Run E2E tests
+        working-directory: goauth/tests/e2e
+        env:
+          GOAUTH_BASE_URL: http://localhost:${{ env.APP_PORT }}
+          CI: true
+          PORT: ${{ env.APP_PORT }}
+        run: npx playwright test --reporter=html,json,list 2>&1 | tee playwright-output.log
+
+      - name: Upload Playwright output log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-output
+          path: goauth/tests/e2e/playwright-output.log
+          retention-days: 14
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: goauth/tests/e2e/html-report
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: goauth/tests/e2e/test-results
+          retention-days: 14
+
+      - name: Upload results JSON
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-json
+          path: goauth/tests/e2e/results.json
+          retention-days: 14
+
+  # ===========================================
+  # 收集失败日志并打包
+  # ===========================================
+  collect-logs-on-failure:
+    name: Collect Logs on Failure
+    runs-on: ubuntu-latest
+    needs: [build, unit-and-integration-tests, e2e-tests]
+    if: failure()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect server logs
+        run: |
+          mkdir -p logs
+          # 尝试收集服务器日志（如果存在）
+          if [ -f "goauth/data/goauth.log" ]; then
+            cp goauth/data/goauth.log logs/
+          fi
+          # 收集数据库文件（用于调试）
+          if [ -f "goauth/data/goauth.db" ]; then
+            cp goauth/data/goauth.db logs/
+          fi
+          # 创建测试运行信息
+          echo "=== Test Run Info ===" > logs/test-info.txt
+          echo "Repository: ${{ github.repository }}" >> logs/test-info.txt
+          echo "Branch: ${{ github.ref_name }}" >> logs/test-info.txt
+          echo "Commit: ${{ github.sha }}" >> logs/test-info.txt
+          echo "Run ID: ${{ github.run_id }}" >> logs/test-info.txt
+          echo "Run Number: ${{ github.run_number }}" >> logs/test-info.txt
+          echo "Triggered by: ${{ github.actor }}" >> logs/test-info.txt
+          echo "Event: ${{ github.event_name }}" >> logs/test-info.txt
+          date >> logs/test-info.txt
+
+      - name: Create logs archive
+        run: |
+          mkdir -p final-logs
+          # 复制需要的 artifacts（排除二进制文件）
+          for dir in unit-integration-logs playwright-output playwright-report test-results results-json coverage-reports; do
+            if [ -d "artifacts/$dir" ]; then
+              cp -r "artifacts/$dir" final-logs/
+            fi
+          done
+          # 复制日志
+          if [ -d "logs" ] && [ "$(ls -A logs 2>/dev/null)" ]; then
+            cp -r logs/* final-logs/
+          fi
+          # 创建压缩包
+          tar -czvf failure-logs-${{ github.run_id }}.tar.gz final-logs
+
+      - name: Upload failure logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-logs-${{ github.run_id }}
+          path: failure-logs-${{ github.run_id }}.tar.gz
+          retention-days: 30
+
+  # ===========================================
+  # 测试总结
+  # ===========================================
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [build, unit-and-integration-tests, e2e-tests]
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit & Integration | ${{ needs.unit-and-integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.e2e-tests.result }}" != "success" ] || [ "${{ needs.unit-and-integration-tests.result }}" != "success" ]; then
+            echo "### Failure Artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the following artifacts to debug failures:" >> $GITHUB_STEP_SUMMARY
+            echo "- \`unit-integration-logs\` - Unit and integration test logs" >> $GITHUB_STEP_SUMMARY
+            echo "- \`playwright-report\` - HTML test report with screenshots and traces" >> $GITHUB_STEP_SUMMARY
+            echo "- \`playwright-output\` - Playwright console output log" >> $GITHUB_STEP_SUMMARY
+            echo "- \`test-results\` - Test screenshots and videos" >> $GITHUB_STEP_SUMMARY
+            echo "- \`failure-logs-${{ github.run_id }}\` - All logs bundled together" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if any test failed
+        if: contains(needs.*.result, 'failure')
+        run: exit 1

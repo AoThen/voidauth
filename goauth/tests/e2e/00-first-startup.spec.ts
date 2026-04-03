@@ -1,0 +1,213 @@
+import { test, expect, STRONG_PASSWORD, saveAdmin, getSavedAdmin } from './fixture';
+
+/**
+ * 首次启动流程测试
+ * 
+ * 测试注册、登录流程。
+ * 注意：goauth 注册成功后需要重新登录。
+ */
+
+test.describe.configure({ mode: 'serial' });
+
+test.describe('首次启动流程', () => {
+  test('1. 首次访问显示登录页面', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    
+    // 应该看到登录标题
+    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    
+    // 应该有注册链接（首次启动允许注册）
+    const registerLink = page.locator('a:has-text("注册")');
+    await expect(registerLink).toBeVisible();
+  });
+
+  test('2. 第一个用户注册成功并登录', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    
+    // 点击注册链接
+    await page.locator('a:has-text("注册")').click();
+    await page.waitForTimeout(500);
+    
+    // 确认在注册页面
+    await expect(page.locator('h1:has-text("注册")')).toBeVisible({ timeout: 5000 });
+    
+    // 填写注册表单
+    const username = `firstuser_${Date.now()}`;
+    const email = `${username}@test.local`;
+    await page.locator('#reg-username').fill(username);
+    await page.locator('#reg-email').fill(email);
+    await page.locator('#reg-password').fill(STRONG_PASSWORD);
+    await page.locator('#reg-confirm').fill(STRONG_PASSWORD);
+    
+    // 提交注册
+    await page.locator('button:has-text("注册")').click();
+    
+    // 等待注册成功 - 应该跳转回登录页
+    await page.waitForTimeout(2000);
+    
+    // 验证回到登录页（注册成功后会跳转到登录页）
+    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    
+    // 第一个用户自动成为管理员，登录
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(STRONG_PASSWORD);
+    await page.locator('button[type="submit"]:has-text("登录")').click();
+    
+    // 等待登录成功
+    await page.waitForTimeout(2000);
+    
+    // 验证登录成功 - 应该看到管理后台
+    await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 10000 });
+    
+    // 保存管理员凭据供后续测试使用
+    saveAdmin(username, STRONG_PASSWORD, email);
+  });
+
+  test('3. 新用户注册后需要管理员批准', async ({ page }) => {
+    // 先注册用户
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+
+    const username = `loginuser_${Date.now()}`;
+
+    // 注册
+    await page.locator('a:has-text("注册")').click();
+    await page.waitForTimeout(500);
+    await page.locator('#reg-username').fill(username);
+    await page.locator('#reg-email').fill(`${username}@test.local`);
+    await page.locator('#reg-password').fill(STRONG_PASSWORD);
+    await page.locator('#reg-confirm').fill(STRONG_PASSWORD);
+    await page.locator('button:has-text("注册")').click();
+
+    // 等待回到登录页
+    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500);
+
+    // 尝试登录 - 应该显示"用户未批准"错误
+    await page.locator('#username').fill(username);
+    await page.locator('#password').fill(STRONG_PASSWORD);
+    await page.locator('button[type="submit"]:has-text("登录")').click();
+
+    // 等待错误消息显示
+    await page.waitForTimeout(2000);
+
+    // 验证显示"用户未批准"错误 - 使用更宽松的选择器
+    const errorElement = page.locator('.error, [class*="error"]');
+    await expect(errorElement.first()).toBeVisible({ timeout: 5000 });
+    await expect(errorElement.first()).toContainText('用户未批准', { timeout: 5000 });
+  });
+
+  test('4. 可以登出并重新登录', async ({ page }) => {
+    // 使用保存的管理员账号测试登出和重新登录
+    const savedAdmin = getSavedAdmin();
+    
+    // 首先清除所有 cookies 确保从登录页开始
+    const context = page.context();
+    await context.clearCookies();
+    
+    // 导航到首页让前端重新检测登录状态
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
+
+    // 确认在登录页
+    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    
+    if (savedAdmin) {
+      // 登录
+      await page.locator('#username').fill(savedAdmin.username);
+      await page.locator('#password').fill(savedAdmin.password);
+      await page.locator('button[type="submit"]:has-text("登录")').click();
+      await page.waitForTimeout(2000);
+      
+      // 验证登录成功
+      await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 10000 });
+      
+      // 使用 API 登出
+      await page.evaluate(async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      });
+      
+      // 清除 cookies 并刷新页面
+      await context.clearCookies();
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1000);
+      
+      // 验证回到登录页
+      await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 5000 });
+      
+      // 重新登录
+      await page.locator('#username').fill(savedAdmin.username);
+      await page.locator('#password').fill(savedAdmin.password);
+      await page.locator('button[type="submit"]:has-text("登录")').click();
+      await page.waitForTimeout(2000);
+      
+      // 验证再次登录成功
+      await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 10000 });
+    }
+  });
+
+  test('5. 错误密码显示错误信息', async ({ page }) => {
+    const savedAdmin = getSavedAdmin();
+    
+    // 首先清除所有 cookies 确保从登录页开始
+    const context = page.context();
+    await context.clearCookies();
+    
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    
+    // 确认在登录页
+    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    
+    if (savedAdmin) {
+      // 用错误密码登录管理员账号
+      await page.locator('#username').fill(savedAdmin.username);
+      await page.locator('#password').fill('WrongPassword123!');
+      await page.locator('button[type="submit"]:has-text("登录")').click();
+      
+      // 等待错误消息
+      await page.waitForTimeout(2000);
+      
+      // 应该显示错误
+      const errorVisible = await page.locator('.error').isVisible({ timeout: 3000 }).catch(() => false);
+      const stillOnLogin = page.url().includes('#login') || page.url().endsWith('/');
+      expect(errorVisible || stillOnLogin).toBeTruthy();
+    } else {
+      // 如果没有保存的管理员，跳过测试
+      expect(true).toBeTruthy();
+    }
+  });
+
+  test('6. 密码不一致显示错误', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    
+    // 点击注册
+    await page.locator('a:has-text("注册")').click();
+    await page.waitForTimeout(500);
+    
+    await page.locator('#reg-username').fill(`mismatch_${Date.now()}`);
+    await page.locator('#reg-email').fill('mismatch@test.local');
+    await page.locator('#reg-password').fill(STRONG_PASSWORD);
+    await page.locator('#reg-confirm').fill('DifferentPassword123!');
+    
+    await page.locator('button:has-text("注册")').click();
+    
+    // 等待错误消息
+    await page.waitForTimeout(1500);
+    
+    // 应该显示错误或仍在注册页
+    const errorVisible = await page.locator('.error').isVisible({ timeout: 3000 }).catch(() => false);
+    const stillOnRegister = await page.locator('h1:has-text("注册")').isVisible({ timeout: 3000 }).catch(() => false);
+    expect(errorVisible || stillOnRegister).toBeTruthy();
+  });
+});

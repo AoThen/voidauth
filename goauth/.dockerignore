@@ -1,0 +1,28 @@
+# Build artifacts
+goauth
+goauth-test
+bin/
+
+# Development files
+.env
+data/
+tests/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE and git
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Node modules (if any frontend build tools)
+node_modules/
+
+# Docker files (don't need in image)
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goauth</title>
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/alpine.min.js" defer></script>
+</head>
+<body x-data="app()" x-init="init()">
+  <!-- 加载状态屏幕 - Alpine.js 初始化前显示，初始化后隐藏 -->
+  <div class="loading-screen" x-show="false">
+    <div class="loading-spinner"></div>
+  </div>
+  
+  <div class="container" x-cloak>
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <img src="/assets/logo.svg" alt="Goauth" width="32" height="32">
+        <span x-text="config.appName || 'Goauth'"></span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Login Page -->
+      <div x-show="page === 'login'" class="card">
+        <h1>登录</h1>
+        <form @submit.prevent="login()">
+          <div class="form-group">
+            <label for="username">用户名</label>
+            <input type="text" id="username" x-model="loginForm.username" required autofocus>
+          </div>
+          <div class="form-group">
+            <label for="password">密码</label>
+            <input type="password" id="password" x-model="loginForm.password" required>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" x-model="loginForm.rememberMe">
+              记住我 (30天)
+            </label>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <button type="submit" class="btn btn-primary" :disabled="loading">
+            <span x-show="!loading">登录</span>
+            <span x-show="loading">登录中...</span>
+          </button>
+        </form>
+        <div class="links" x-show="config.signupEnabled">
+          <a href="#register" @click.prevent="setPage('register')">注册新账号</a>
+        </div>
+      </div>
+
+      <!-- Register Page -->
+      <div x-show="page === 'register'" class="card">
+        <h1>注册</h1>
+        <div x-show="inviteToken" class="info-box">
+          <p>您已通过邀请链接访问，注册后将自动关联到指定分组。</p>
+        </div>
+        <form @submit.prevent="register()">
+          <div class="form-group">
+            <label for="reg-username">用户名</label>
+            <input type="text" id="reg-username" x-model="registerForm.username" required>
+          </div>
+          <div class="form-group">
+            <label for="reg-email">邮箱</label>
+            <input type="email" id="reg-email" x-model="registerForm.email">
+          </div>
+          <div class="form-group">
+            <label for="reg-password">密码</label>
+            <input type="password" id="reg-password" x-model="registerForm.password" required>
+            <p class="help-text">至少 8 个字符，需包含大小写字母、数字和符号，避免使用常见单词或个人信息</p>
+          </div>
+          <div class="form-group">
+            <label for="reg-confirm">确认密码</label>
+            <input type="password" id="reg-confirm" x-model="registerForm.confirmPassword" required>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <button type="submit" class="btn btn-primary" :disabled="loading">
+            <span x-show="!loading">注册</span>
+            <span x-show="loading">注册中...</span>
+          </button>
+        </form>
+        <div class="links" x-show="!inviteToken">
+          <a href="#login" @click.prevent="setPage('login')">已有账号？登录</a>
+        </div>
+      </div>
+
+      <!-- MFA Page -->
+      <div x-show="page === 'mfa'" class="card">
+        <h1>二步验证</h1>
+        <form @submit.prevent="verifyTotp()">
+          <div class="form-group">
+            <label for="totp">验证码</label>
+            <input type="text" id="totp" x-model="totpCode" placeholder="000000" maxlength="6" required autofocus>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <button type="submit" class="btn btn-primary" :disabled="loading">验证</button>
+        </form>
+      </div>
+
+      <!-- MFA Setup Required Page -->
+      <div x-show="page === 'mfa-setup'" class="card">
+        <h1>需要设置二步验证</h1>
+        <div class="info-box warning">
+          <p>您的账户要求启用二步验证 (MFA)，请先完成 TOTP 设置。</p>
+        </div>
+        <div x-show="user" class="user-info">
+          <p>当前用户：<strong x-text="user?.username"></strong></p>
+        </div>
+        <button @click="setupTotp()" class="btn btn-primary" :disabled="loading">
+          <span x-show="!loading">设置二步验证</span>
+          <span x-show="loading">加载中...</span>
+        </button>
+        <button @click="logout()" class="btn btn-secondary" style="margin-top: 10px;">退出登录</button>
+      </div>
+
+      <!-- Admin Page -->
+      <div x-show="page === 'admin'" class="card card-wide">
+        <div class="section-header">
+          <h1>管理后台</h1>
+          <div class="header-actions">
+            <button @click="setPage('user')" class="btn btn-sm">个人设置</button>
+            <button @click="logout()" class="btn btn-sm btn-secondary">退出登录</button>
+          </div>
+        </div>
+        <div class="tabs">
+          <button @click="adminTab = 'users'; loadUsers()" :class="{ active: adminTab === 'users' }">用户</button>
+          <button @click="adminTab = 'groups'; loadGroups()" :class="{ active: adminTab === 'groups' }">分组</button>
+          <button @click="adminTab = 'clients'; loadClients()" :class="{ active: adminTab === 'clients' }">客户端</button>
+          <button @click="adminTab = 'invitations'; loadInvitations()" :class="{ active: adminTab === 'invitations' }">邀请</button>
+          <button @click="adminTab = 'proxyauth'; loadProxyAuths(); loadGroups()" :class="{ active: adminTab === 'proxyauth' }">代理认证</button>
+        </div>
+
+        <!-- Users Tab -->
+        <div x-show="adminTab === 'users'">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>邮箱</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="u in users" :key="u.id">
+                <tr>
+                  <td x-text="u.username"></td>
+                  <td x-text="u.email || '-'"></td>
+                  <td>
+                    <span x-show="u.disabled" class="badge badge-danger">已禁用</span>
+                    <span x-show="!u.disabled && u.approved" class="badge badge-success">正常</span>
+                    <span x-show="!u.disabled && !u.approved" class="badge badge-warning">待审批</span>
+                    <span x-show="u.isAdmin" class="badge badge-info">管理员</span>
+                  </td>
+                  <td class="actions">
+                    <button x-show="!u.approved" @click="approveUser(u.id)" class="btn btn-sm btn-success">审批</button>
+                    <button x-show="u.disabled" @click="enableUser(u.id)" class="btn btn-sm">启用</button>
+                    <button x-show="!u.disabled && u.id !== user?.id" @click="disableUser(u.id)" class="btn btn-sm btn-warning">禁用</button>
+                    <button @click="resetPassword(u.id)" class="btn btn-sm">重置密码</button>
+                    <button x-show="u.id !== user?.id" @click="deleteUser(u.id)" class="btn btn-sm btn-danger">删除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Groups Tab -->
+        <div x-show="adminTab === 'groups'">
+          <div class="section-header">
+            <h3>分组列表</h3>
+            <button @click="showGroupModal = true; groupForm = {name: '', mfaRequired: false}" class="btn btn-primary btn-sm">新建分组</button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>MFA要求</th>
+                <th>成员</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="group in groups" :key="group.id">
+                <tr>
+                  <td x-text="group.name"></td>
+                  <td>
+                    <span x-show="group.mfaRequired" class="badge badge-warning">需要</span>
+                    <span x-show="!group.mfaRequired" class="badge badge-success">不要求</span>
+                  </td>
+                  <td>
+                    <span x-text="group.memberCount || 0"></span>
+                  </td>
+                  <td class="actions">
+                    <button @click="openGroupMembersModal(group)" class="btn btn-sm">成员</button>
+                    <button @click="deleteGroup(group.id)" class="btn btn-sm btn-danger">删除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Clients Tab -->
+        <div x-show="adminTab === 'clients'">
+          <div class="section-header">
+            <h3>OIDC客户端</h3>
+            <button @click="showClientModal = true; clientForm = {id: '', secret: '', name: '', redirectUris: '', scopes: 'openid profile email', trusted: false}" class="btn btn-primary btn-sm">新建客户端</button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>回调地址</th>
+                <th>可信</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="client in clients" :key="client.id">
+                <tr>
+                  <td x-text="client.id"></td>
+                  <td x-text="client.name || '-'"></td>
+                  <td>
+                    <template x-for="uri in client.redirectUris" :key="uri">
+                      <span class="badge badge-info" x-text="uri" style="margin-right: 4px;"></span>
+                    </template>
+                  </td>
+                  <td>
+                    <span x-show="client.trusted" class="badge badge-success">是</span>
+                    <span x-show="!client.trusted" class="badge badge-secondary">否</span>
+                  </td>
+                  <td>
+                    <button @click="deleteClient(client.id)" class="btn btn-sm btn-danger">删除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Invitations Tab -->
+        <div x-show="adminTab === 'invitations'">
+          <div class="section-header">
+            <h3>邀请链接</h3>
+            <button @click="showInviteModal = true; inviteForm = {email: '', username: '', name: '', emailVerified: false, groupIds: [], expiresIn: 72}" class="btn btn-primary btn-sm">创建邀请</button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>邮箱</th>
+                <th>用户名</th>
+                <th>过期时间</th>
+                <th>邀请链接</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="inv in invitations" :key="inv.id">
+                <tr>
+                  <td x-text="inv.email || '-'"></td>
+                  <td x-text="inv.username || '-'"></td>
+                  <td x-text="formatDate(inv.expiresAt)"></td>
+                  <td>
+                    <button @click="copyInviteLink(inv.id)" class="btn btn-sm">复制链接</button>
+                  </td>
+                  <td>
+                    <button @click="deleteInvitation(inv.id)" class="btn btn-sm btn-danger">删除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ProxyAuth Tab -->
+        <div x-show="adminTab === 'proxyauth'">
+          <div class="section-header">
+            <h3>代理认证配置</h3>
+            <button @click="showProxyAuthModal = true; proxyAuthForm = {domain: '', mfaRequired: false, maxSessionLength: null, groupIds: []}" class="btn btn-primary btn-sm">添加配置</button>
+          </div>
+          <p class="help-text">用于 Traefik ForwardAuth 或 Nginx auth_request 集成，实现 SSO。</p>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>域名</th>
+                <th>MFA要求</th>
+                <th>最大会话时长</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="pa in proxyAuths" :key="pa.id">
+                <tr>
+                  <td x-text="pa.domain"></td>
+                  <td>
+                    <span x-show="pa.mfaRequired" class="badge badge-success">是</span>
+                    <span x-show="!pa.mfaRequired" class="badge badge-secondary">否</span>
+                  </td>
+                  <td x-text="pa.maxSessionLength ? pa.maxSessionLength + '分钟' : '无限制'"></td>
+                  <td>
+                    <button @click="deleteProxyAuth(pa.id)" class="btn btn-sm btn-danger">删除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- User Settings Page -->
+      <div x-show="page === 'user'" class="card">
+        <div class="section-header">
+          <h1>用户设置</h1>
+          <div class="header-actions">
+            <button @click="setPage('admin')" x-show="user?.isAdmin" class="btn btn-sm">管理后台</button>
+            <button @click="logout()" class="btn btn-sm btn-secondary">退出登录</button>
+          </div>
+        </div>
+        <div x-show="user">
+          <p><strong>用户名:</strong> <span x-text="user?.username"></span></p>
+          <p><strong>邮箱:</strong> <span x-text="user?.email || '未设置'"></span></p>
+          <hr>
+
+          <!-- TOTP 管理 -->
+          <div class="totp-section">
+            <h3>二步验证 (TOTP)</h3>
+            <div x-show="user?.hasTotp" class="totp-status">
+              <span class="badge badge-success">已启用</span>
+              <button @click="removeTotp()" class="btn btn-sm btn-secondary">移除</button>
+            </div>
+            <div x-show="!user?.hasTotp" class="totp-status">
+              <span class="badge badge-warning">未启用</span>
+              <button @click="setupTotp()" class="btn btn-sm btn-primary">设置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TOTP 设置弹窗 -->
+    <div x-show="showTotpModal" x-cloak class="modal-overlay" @click.self="showTotpModal = false">
+      <div class="modal">
+        <h2>设置二步验证</h2>
+        <p>使用验证器应用（如 Google Authenticator、Microsoft Authenticator）扫描下方二维码：</p>
+
+        <div class="qr-container" x-show="totpSetup?.qrBase64">
+          <img :src="totpSetup ? 'data:image/png;base64,' + totpSetup.qrBase64 : ''" alt="TOTP QR Code">
+        </div>
+
+        <div class="secret-display" x-show="totpSetup?.secret">
+          <p><strong>手动输入密钥：</strong></p>
+          <code x-text="totpSetup?.secret" class="secret-code"></code>
+          <button @click="totpSetup && navigator.clipboard.writeText(totpSetup.secret)" class="btn btn-sm">复制</button>
+        </div>
+
+        <hr>
+
+        <form @submit.prevent="verifyTotpSetup()">
+          <div class="form-group">
+            <label for="totp-verify">输入验证器显示的 6 位验证码</label>
+            <input type="text" id="totp-verify" x-model="totpVerifyCode" placeholder="000000" maxlength="6" required>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <div class="modal-actions">
+            <button type="button" @click="showTotpModal = false; totpSetup = null; totpVerifyCode = ''" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              <span x-show="!loading">验证并启用</span>
+              <span x-show="loading">验证中...</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 创建分组弹窗 -->
+    <div x-show="showGroupModal" x-cloak class="modal-overlay" @click.self="showGroupModal = false">
+      <div class="modal">
+        <h2>新建分组</h2>
+        <form @submit.prevent="createGroup()">
+          <div class="form-group">
+            <label for="group-name">分组名称</label>
+            <input type="text" id="group-name" x-model="groupForm.name" required>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" x-model="groupForm.mfaRequired">
+              要求 MFA
+            </label>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <div class="modal-actions">
+            <button type="button" @click="showGroupModal = false" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">创建</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 分组成员管理弹窗 -->
+    <div x-show="showGroupMembersModal" x-cloak class="modal-overlay" @click.self="showGroupMembersModal = false">
+      <div class="modal modal-wide">
+        <h2>分组成员管理: <span x-text="selectedGroup?.name"></span></h2>
+
+        <!-- 添加成员 -->
+        <div class="form-row">
+          <select x-model="addMemberUserId" class="form-select">
+            <option value="">选择用户添加到分组</option>
+            <template x-for="u in users" :key="u.id">
+              <option :value="u.id" x-text="u.username + (u.email ? ' (' + u.email + ')' : '')"></option>
+            </template>
+          </select>
+          <button @click="addGroupMember()" class="btn btn-sm btn-primary" :disabled="!addMemberUserId">添加</button>
+        </div>
+
+        <!-- 成员列表 -->
+        <div class="member-list">
+          <h4>当前成员</h4>
+          <table class="table table-compact">
+            <thead>
+              <tr>
+                <th>用户名</th>
+                <th>邮箱</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="member in groupMembers" :key="member.id">
+                <tr>
+                  <td x-text="member.username"></td>
+                  <td x-text="member.email || '-'"></td>
+                  <td>
+                    <button @click="removeGroupMember(member.id)" class="btn btn-sm btn-danger">移除</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <p x-show="groupMembers.length === 0" class="empty-hint">暂无成员</p>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" @click="showGroupMembersModal = false" class="btn btn-secondary">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 创建客户端弹窗 -->
+    <div x-show="showClientModal" x-cloak class="modal-overlay" @click.self="showClientModal = false">
+      <div class="modal">
+        <h2>新建 OIDC 客户端</h2>
+        <form @submit.prevent="createClient()">
+          <div class="form-group">
+            <label for="client-id">客户端 ID</label>
+            <input type="text" id="client-id" x-model="clientForm.id" required placeholder="my-app">
+          </div>
+          <div class="form-group">
+            <label for="client-secret">客户端密钥 (可选)</label>
+            <input type="text" id="client-secret" x-model="clientForm.secret" placeholder="留空则不使用密钥">
+          </div>
+          <div class="form-group">
+            <label for="client-name">名称</label>
+            <input type="text" id="client-name" x-model="clientForm.name" placeholder="应用名称">
+          </div>
+          <div class="form-group">
+            <label for="client-redirect">回调地址 (每行一个)</label>
+            <textarea id="client-redirect" x-model="clientForm.redirectUris" rows="3" required placeholder="http://localhost:3000/callback"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="client-scopes">作用域 (逗号分隔)</label>
+            <input type="text" id="client-scopes" x-model="clientForm.scopes" placeholder="openid, profile, email">
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" x-model="clientForm.trusted">
+              可信客户端 (自动授权，无需用户确认)
+            </label>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <div class="modal-actions">
+            <button type="button" @click="showClientModal = false" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">创建</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 创建邀请弹窗 -->
+    <div x-show="showInviteModal" x-cloak class="modal-overlay" @click.self="showInviteModal = false">
+      <div class="modal">
+        <h2>创建邀请</h2>
+        <form @submit.prevent="createInvitation()">
+          <div class="form-group">
+            <label for="invite-email">邮箱 (可选)</label>
+            <input type="email" id="invite-email" x-model="inviteForm.email" placeholder="user@example.com">
+          </div>
+          <div class="form-group">
+            <label for="invite-username">用户名 (可选)</label>
+            <input type="text" id="invite-username" x-model="inviteForm.username" placeholder="username">
+          </div>
+          <div class="form-group">
+            <label for="invite-name">显示名称 (可选)</label>
+            <input type="text" id="invite-name" x-model="inviteForm.name" placeholder="张三">
+          </div>
+          <div class="form-group">
+            <label for="invite-expires">有效期 (小时)</label>
+            <input type="number" id="invite-expires" x-model="inviteForm.expiresIn" min="1" max="720">
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" x-model="inviteForm.emailVerified">
+              自动验证邮箱
+            </label>
+          </div>
+          <div x-show="error" class="error" x-text="error"></div>
+          <div class="modal-actions">
+            <button type="button" @click="showInviteModal = false" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">创建</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ProxyAuth Modal -->
+    <div x-show="showProxyAuthModal" x-cloak class="modal-overlay" @click.self="showProxyAuthModal = false">
+      <div class="modal">
+        <h2>添加代理认证配置</h2>
+        <form @submit.prevent="createProxyAuth()">
+          <div class="form-group">
+            <label for="pa-domain">域名</label>
+            <input type="text" id="pa-domain" x-model="proxyAuthForm.domain" placeholder="app.example.com" required>
+          </div>
+          <div class="form-group checkbox">
+            <label>
+              <input type="checkbox" x-model="proxyAuthForm.mfaRequired">
+              要求 MFA
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="pa-session">最大会话时长（分钟，0为无限制）</label>
+            <input type="number" id="pa-session" x-model.number="proxyAuthForm.maxSessionLength" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>允许访问的分组</label>
+            <div class="checkbox-group">
+              <template x-for="group in groups" :key="group.id">
+                <label class="checkbox-label">
+                  <input type="checkbox" :value="group.id" x-model="proxyAuthForm.groupIds">
+                  <span x-text="group.name"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="showProxyAuthModal = false" class="btn btn-secondary">取消</button>
+            <button type="submit" class="btn btn-primary" :disabled="loading">创建</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Goauth</p>
+    </footer>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

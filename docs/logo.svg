@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 主渐变 - 紫色主题 -->
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#b794d4"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <!-- 内部渐变 -->
+    <linearGradient id="innerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5f0f9"/>
+      <stop offset="100%" style="stop-color:#e8e0ed"/>
+    </linearGradient>
+    <!-- 锁孔渐变 -->
+    <radialGradient id="lockGrad" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" style="stop-color:#9333ea"/>
+      <stop offset="100%" style="stop-color:#581c87"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- 背景圆 -->
+  <circle cx="256" cy="256" r="240" fill="url(#mainGrad)" opacity="0.1"/>
+  
+  <!-- 盾牌主体 -->
+  <path d="M256 56 
+           L420 120 
+           L420 280 
+           C420 380 340 440 256 456 
+           C172 440 92 380 92 280 
+           L92 120 Z" 
+        fill="url(#mainGrad)" 
+        stroke="url(#mainGrad)" 
+        stroke-width="8"/>
+  
+  <!-- 盾牌内部高光 -->
+  <path d="M256 80 
+           L396 136 
+           L396 278 
+           C396 364 326 416 256 432 
+           C186 416 116 364 116 278 
+           L116 136 Z" 
+        fill="url(#innerGrad)" 
+        opacity="0.3"/>
+  
+  <!-- G 字母造型 - 由钥匙孔演变 -->
+  <g transform="translate(256, 256)">
+    <!-- 外圈 G -->
+    <path d="M-60 -80 
+             A80 80 0 1 1 -80 0
+             L80 0
+             L80 -40
+             L40 -40
+             L40 0
+             L-40 0
+             A40 40 0 1 0 0 -40
+             L0 -80 Z"
+          fill="url(#lockGrad)"
+          transform="scale(1.1)"/>
+    
+    <!-- 内部装饰点 -->
+    <circle cx="0" cy="-20" r="15" fill="#fff" opacity="0.8"/>
+  </g>
+  
+  <!-- 顶部装饰线 -->
+  <path d="M256 90 L256 130" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+</svg>

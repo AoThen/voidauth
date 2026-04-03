@@ -1,0 +1,97 @@
+# Goauth with Traefik Reverse Proxy
+# Usage: docker-compose -f docker-compose.traefik.yml up -d
+
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.4
+    container_name: traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard (optional)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-data:/data
+    restart: unless-stopped
+    networks:
+      - goauth-network
+
+  goauth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goauth
+    environment:
+      - APP_SERVER_ENVIRONMENT=production
+      - APP_SERVER_APPURL=https://auth.yourdomain.com
+      - APP_SERVER_BASEPATH=
+      - APP_SERVER_TIMEZONE=Asia/Shanghai
+      - APP_DATABASE_PATH=/app/data/goauth.db
+      - APP_UI_APPNAME=Goauth
+      - APP_UI_APPCOLOR=#906bc7
+      - APP_UI_SIGNUPENABLED=true
+      - APP_LOGGING_LEVEL=info
+      # Optional: Rate limiting (0 = disabled)
+      - GOAUTH_RATE_LIMIT=100
+      - TZ=Asia/Shanghai
+    volumes:
+      - goauth-data:/app/data
+    labels:
+      - "traefik.enable=true"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.goauth-http.rule=Host(`auth.yourdomain.com`)"
+      - "traefik.http.routers.goauth-http.entrypoints=web"
+      - "traefik.http.routers.goauth-http.middlewares=redirect-to-https"
+      # HTTPS router
+      - "traefik.http.routers.goauth-https.rule=Host(`auth.yourdomain.com`)"
+      - "traefik.http.routers.goauth-https.entrypoints=websecure"
+      - "traefik.http.routers.goauth-https.tls=true"
+      - "traefik.http.routers.goauth-https.tls.certresolver=letsencrypt"
+      # Service configuration
+      - "traefik.http.services.goauth.loadbalancer.server.port=3000"
+      # Middleware for proxy auth (optional, for protecting other services)
+      - "traefik.http.middlewares.goauth-auth.forwardauth.address=http://goauth:3000/authz/forward-auth"
+      - "traefik.http.middlewares.goauth-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.goauth-auth.forwardauth.authResponseHeaders=X-Forwarded-User,X-Forwarded-Email,X-Forwarded-Groups"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - goauth-network
+
+  # Example: Protected service using Goauth for authentication
+  # Uncomment and modify as needed
+  # protected-app:
+  #   image: nginx:alpine
+  #   container_name: protected-app
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.protected-app.rule=Host(`app.yourdomain.com`)"
+  #     - "traefik.http.routers.protected-app.entrypoints=websecure"
+  #     - "traefik.http.routers.protected-app.tls=true"
+  #     - "traefik.http.routers.protected-app.tls.certresolver=letsencrypt"
+  #     - "traefik.http.routers.protected-app.middlewares=goauth-auth"
+  #   restart: unless-stopped
+  #   networks:
+  #     - goauth-network
+
+volumes:
+  goauth-data:
+  traefik-data:
+
+networks:
+  goauth-network:
+    driver: bridge

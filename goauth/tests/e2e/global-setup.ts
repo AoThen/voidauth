@@ -1,0 +1,37 @@
+import { unlinkSync, existsSync } from 'fs';
+
+/**
+ * 全局设置 - 在所有测试前清理状态
+ * 
+ * 注意：Playwright 执行顺序是 webServer 启动 → globalSetup → 测试
+ * 所以这里不能清空数据库目录，否则会删除服务器刚创建的表
+ * 
+ * 解决方案：
+ * 1. 只清理状态文件（让测试重新创建管理员）
+ * 2. 让服务器自己管理数据库生命周期
+ */
+async function globalSetup() {
+  const stateFile = '/tmp/goauth-e2e-admin-state.json';
+  
+  console.log('🔧 全局设置: 清理测试状态...');
+  
+  try {
+    // 清理状态文件
+    if (existsSync(stateFile)) {
+      unlinkSync(stateFile);
+      console.log('✅ 状态文件已清理');
+    }
+    
+    // 清理临时状态文件（旧版本可能使用不同路径）
+    const oldStateFile = `${__dirname}/.admin-state.json`;
+    if (existsSync(oldStateFile)) {
+      unlinkSync(oldStateFile);
+    }
+    
+    console.log('✅ 全局设置完成');
+  } catch (error) {
+    console.error('❌ 全局设置失败:', error);
+  }
+}
+
+export default globalSetup;
