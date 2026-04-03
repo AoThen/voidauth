@@ -39,18 +39,29 @@ function generateEmail(username: string): string {
 
 // 获取已保存的管理员凭据
 export function getSavedAdmin(): { username: string; password: string; email: string } | null {
-  if (!existsSync(STATE_FILE)) return null;
+  if (!existsSync(STATE_FILE)) {
+    console.log(`[getSavedAdmin] 状态文件不存在: ${STATE_FILE}`);
+    return null;
+  }
   try {
     const data = readFileSync(STATE_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
+    const parsed = JSON.parse(data);
+    console.log(`[getSavedAdmin] 成功读取保存的 admin: ${parsed.username}`);
+    return parsed;
+  } catch (e) {
+    console.log(`[getSavedAdmin] 解析状态文件失败: ${e}`);
     return null;
   }
 }
 
 // 保存管理员凭据
 export function saveAdmin(username: string, password: string, email: string): void {
-  writeFileSync(STATE_FILE, JSON.stringify({ username, password, email, timestamp: Date.now() }));
+  try {
+    writeFileSync(STATE_FILE, JSON.stringify({ username, password, email, timestamp: Date.now() }));
+    console.log(`[saveAdmin] 成功保存 admin: ${username} 到 ${STATE_FILE}`);
+  } catch (e) {
+    console.log(`[saveAdmin] 保存失败: ${e}`);
+  }
 }
 
 /**
@@ -417,6 +428,11 @@ function clearSavedAdmin(): void {
  * - authenticatedPage: 已认证的页面（自动注册并登录）
  * - adminPage: 管理员页面（第一个用户自动成为管理员）
  * - testUser: 测试用户数据生成
+ * 
+ * 关键逻辑：
+ * 1. 第一个测试会创建第一个用户（自动成为管理员）并保存凭据
+ * 2. 后续测试会重用已保存的管理员凭据
+ * 3. 如果凭据失效，说明测试环境需要重置
  */
 export const test = base.extend<E2EFixtures>({
   // 创建一个已认证的页面
@@ -458,9 +474,21 @@ export const test = base.extend<E2EFixtures>({
           // 等待管理后台内容真正可见
           await waitForContentVisible(page, '管理后台', 10000);
           usedSavedAdmin = true;
+        } else if (loginStatus && loginStatus.isLoggedIn && !loginStatus.isAdmin) {
+          // 登录成功但不是管理员 - 这意味着保存的用户不是第一个用户
+          // 数据库状态不一致，需要清理环境
+          console.log(`WARNING: Saved admin ${savedAdmin.username} is no longer admin. Database state may be corrupted.`);
+          
+          // 登出当前用户
+          await logoutUser(page);
+          
+          // 清除保存的凭据，尝试创建新的第一个用户
+          clearSavedAdmin();
         }
       } catch (e) {
-        console.log(`Login error: ${e}`);
+        console.log(`Login error with saved admin: ${e}`);
+        // 清除保存的凭据
+        clearSavedAdmin();
       }
     }
 
@@ -469,59 +497,52 @@ export const test = base.extend<E2EFixtures>({
       clearSavedAdmin();
       await context.clearCookies();
       
-      // 检查数据库中是否已有管理员
-      const dbStatus = await page.evaluate(async () => {
+      // 检查数据库中是否已有用户（通过检查登录页面是否存在）
+      await page.goto('/');
+      await waitForPageReady(page);
+      
+      // 尝试检查是否是首次启动（没有用户）
+      const isFirstStartup = await page.evaluate(async () => {
         try {
-          // 尝试获取公开配置来检查数据库状态
-          const res = await fetch('/api/public/config');
-          return { hasData: res.ok };
+          // 检查是否显示"首次启动"提示或注册链接
+          const registerLink = document.querySelector('a[href="#register"]');
+          const firstStartMsg = document.body.textContent?.includes('第一个用户') || 
+                                document.body.textContent?.includes('首次');
+          return {
+            hasRegisterLink: !!registerLink,
+            hasFirstStartMsg: firstStartMsg
+          };
         } catch {
-          return { hasData: false };
+          return { hasRegisterLink: false, hasFirstStartMsg: false };
         }
       });
       
-      // 如果数据库有数据，尝试获取现有管理员
-      if (dbStatus.hasData) {
-        // 尝试通过 API 获取第一个管理员的信息
-        const adminInfo = await page.evaluate(async () => {
-          try {
-            // 数据库中应该有管理员用户，尝试通过第一个用户登录
-            // 第一个用户通常是管理员
-            return { needFirstUserLogin: true };
-          } catch {
-            return { needFirstUserLogin: false };
-          }
-        });
-        
-        // 如果需要用第一个用户登录，但不知道密码，需要创建新管理员
-        // 这里的解决方案是：直接使用 API 设置一个已知用户为管理员
-        // 但由于我们没有数据库访问权限，只能通过重置数据库来解决
-        // 最简单的方法是让测试在干净环境下运行
-      }
-      
+      // 如果有注册链接，说明可能是首次启动或允许注册
       // 创建新的管理员用户（第一个用户自动成为管理员）
       const username = generateUsername();
       const password = STRONG_PASSWORD;
       const email = generateEmail(username);
       
-      // 首先导航到首页，确保页面完全加载
-      await page.goto('/');
-      await waitForPageReady(page);
-      
-      // 等待页面稳定后，通过点击注册链接导航到注册页面
+      // 导航到注册页面
       const registerLink = page.locator('a:has-text("注册")');
-      if (await registerLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const hasRegisterLink = await registerLink.isVisible({ timeout: 3000 }).catch(() => false);
+      
+      if (hasRegisterLink) {
         await registerLink.click();
         await page.waitForTimeout(1000);
       } else {
-        // 如果注册链接不可见，可能是因为没有注册权限
-        // 直接导航到 hash 路由
         await page.goto('/#register');
         await page.waitForTimeout(1000);
       }
       
       // 等待注册表单
-      await page.locator('#reg-username').waitFor({ state: 'visible', timeout: 10000 });
+      try {
+        await page.locator('#reg-username').waitFor({ state: 'visible', timeout: 10000 });
+      } catch {
+        // 注册表单不可见，可能不允许注册
+        // 这种情况下，测试环境可能需要特殊处理
+        throw new Error('Registration form not available. Test environment may need reconfiguration.');
+      }
       
       await page.locator('#reg-username').fill(username);
       await page.locator('#reg-email').fill(email);
@@ -556,68 +577,35 @@ export const test = base.extend<E2EFixtures>({
         throw new Error(`Failed to authenticate user: ${errorMsg}`);
       }
       
-      // 如果不是管理员，尝试通过 API 设置为管理员
+      // 检查是否是管理员
       if (!loginStatus.isAdmin) {
-        // 检查数据库中是否有其他管理员
+        // 不是管理员，说明数据库中已有其他用户
+        // 这是测试环境问题，需要重新启动测试
         const adminCheck = await page.evaluate(async () => {
           try {
             const res = await fetch('/api/admin/users');
-            if (!res.ok) return { hasAdmin: false, users: [] };
-            const users = await res.json();
+            if (!res.ok) return { hasAdmin: false, adminCount: 0, userCount: 0 };
+            const data = await res.json();
+            const users = data.users || [];
             const admins = users.filter((u: any) => u.isAdmin === true);
-            return { hasAdmin: admins.length > 0, adminCount: admins.length, admins };
+            return { hasAdmin: admins.length > 0, adminCount: admins.length, userCount: users.length };
           } catch {
-            return { hasAdmin: false, users: [] };
+            return { hasAdmin: false, adminCount: 0, userCount: 0 };
           }
         });
         
-        if (adminCheck.hasAdmin && adminCheck.admins && adminCheck.admins.length > 0) {
-          // 已有管理员，保存第一个管理员的信息
-          // 注意：我们无法获取密码，所以只能保存用户名，然后继续使用当前用户
-          // 实际上，这意味着数据库状态不一致，需要重新启动测试
-          console.log(`Database already has ${adminCheck.adminCount} admin(s), but we can't use them without password`);
-          console.log(`Current user ${username} is not admin. This means test database was not properly cleaned.`);
-          
-          // 保存当前用户信息（虽然不是管理员），让测试继续
-          // 但标记这个状态
-          saveAdmin(username, password, email);
-          
-          // 导航到用户设置页（不是管理后台）
-          await page.goto('/#user');
-          await waitForPageReady(page);
-          await waitForContentVisible(page, '用户设置', 10000);
-          
-          // 不抛出错误，让测试继续运行（虽然可能会失败）
-          // 这样可以看到更多诊断信息
-        } else {
-          // 没有管理员，这个用户应该自动成为管理员（第一个用户）
-          // 但可能需要重新登录才能获取管理员权限
-          await page.goto('/#login');
-          await waitForPageReady(page);
-          await page.locator('#username').fill(username);
-          await page.locator('#password').fill(password);
-          await page.locator('button[type="submit"]:has-text("登录")').click();
-          await page.waitForLoadState('networkidle');
-          await page.waitForTimeout(2000);
-          
-          // 再次检查
-          const retryStatus = await checkLoginStatus(page);
-          if (!retryStatus || !retryStatus.isAdmin) {
-            throw new Error('First user did not become admin after re-login');
-          }
-          
-          await page.goto('/#admin');
-          await waitForPageReady(page);
-          await waitForContentVisible(page, '管理后台', 10000);
-          saveAdmin(username, password, email);
-        }
-      } else {
-        // 是管理员，导航到管理后台
-        await page.goto('/#admin');
-        await waitForPageReady(page);
-        await waitForContentVisible(page, '管理后台', 10000);
-        saveAdmin(username, password, email);
+        throw new Error(
+          `Test database state error: Created user is not admin. ` +
+          `DB has ${adminCheck.userCount} users, ${adminCheck.adminCount} admins. ` +
+          `Please ensure test database is cleaned before running tests.`
+        );
       }
+      
+      // 是管理员，导航到管理后台
+      await page.goto('/#admin');
+      await waitForPageReady(page);
+      await waitForContentVisible(page, '管理后台', 10000);
+      saveAdmin(username, password, email);
     }
 
     // 使用已认证的页面
