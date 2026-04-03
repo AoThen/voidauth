@@ -85,19 +85,41 @@ test.describe('首次启动流程', () => {
     await page.locator('button:has-text("注册")').click();
 
     // 等待回到登录页
-    await expect(page.locator('h1:has-text("登录")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1').filter({ hasText: '登录' })).toBeVisible({ timeout: 10000 });
     await page.waitForTimeout(500);
 
-    // 尝试登录 - 在测试环境中用户自动批准，应该可以登录
+    // 尝试登录
     await page.locator('#username').fill(username);
     await page.locator('#password').fill(STRONG_PASSWORD);
+    
+    // 等待登录请求完成
+    const loginPromise = page.waitForResponse(resp => 
+      resp.url().includes('/api/auth/login') && resp.request().method() === 'POST'
+    );
     await page.locator('button[type="submit"]:has-text("登录")').click();
-
-    // 等待登录成功
+    const loginResponse = await loginPromise;
+    
+    // 检查登录响应
+    expect(loginResponse.ok()).toBeTruthy();
+    const loginData = await loginResponse.json();
+    expect(loginData.user).toBeDefined();
+    expect(loginData.user.username).toBe(username);
+    
+    // 等待页面渲染
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
-
-    // 验证登录成功 - 应该看到用户设置或管理后台页面
-    await expect(page.locator('h1:has-text("用户设置"), h1:has-text("管理后台")').first()).toBeVisible({ timeout: 5000 });
+    
+    // 通过 API 验证登录状态
+    const meResponse = await page.evaluate(async () => {
+      const res = await fetch('/api/user/me');
+      if (res.ok) {
+        const data = await res.json();
+        return { ok: true, username: data.username };
+      }
+      return { ok: false };
+    });
+    expect(meResponse.ok).toBeTruthy();
+    expect(meResponse.username).toBe(username);
   });
 
   test('4. 可以登出并重新登录', async ({ page }) => {

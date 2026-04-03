@@ -260,6 +260,31 @@ async function getFirstAdminFromDB(page: Page): Promise<{ id: string; username: 
 }
 
 /**
+ * 检查登录状态（通过 API 验证）
+ */
+async function checkLoginStatus(page: Page): Promise<{ isLoggedIn: boolean; isAdmin: boolean; username: string } | null> {
+  try {
+    const result = await page.evaluate(async () => {
+      try {
+        const res = await fetch('/api/user/me');
+        if (!res.ok) return null;
+        const data = await res.json();
+        return {
+          isLoggedIn: true,
+          isAdmin: data.isAdmin === true,
+          username: data.username || ''
+        };
+      } catch {
+        return null;
+      }
+    });
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Goauth 测试基础 Fixture
  * 
  * 提供以下功能：
@@ -273,77 +298,58 @@ export const test = base.extend<E2EFixtures>({
     // 测试间延迟，避免触发限流
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 导航到首页
-    await page.goto('/');
-    await waitForPageReady(page);
-
-    // 检查是否已登录 - 使用管理后台标题判断
-    let alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 2000);
-
-    // 如果已登录，直接使用
-    if (alreadyLoggedIn) {
-      await use(page);
-      return;
-    }
+    // 清除 cookies 确保干净状态
+    await context.clearCookies();
 
     // 检查是否已有保存的管理员凭据
-    let savedAdmin = getSavedAdmin();
+    const savedAdmin = getSavedAdmin();
 
-    // 如果有保存的管理员凭据，尝试登录
     if (savedAdmin) {
-      // 清除所有 cookies 确保干净状态
-      await context.clearCookies();
-      
-      // 刷新页面确保未认证状态
-      await page.goto('/');
-      await waitForPageReady(page);
-      
-      // 导航到登录页面
+      // 尝试登录已保存的管理员
       await page.goto('/#login');
       await waitForPageReady(page);
       
-      // 等待登录表单可见（确保页面正确渲染）
       try {
         await page.locator('#username').waitFor({ state: 'visible', timeout: 5000 });
-      } catch {
-        // 如果登录表单不可见，可能是页面状态问题，创建新用户
-        console.log('Login form not visible, creating new user');
-        savedAdmin = null;
-      }
-      
-      if (savedAdmin) {
-        // 填写登录表单
+        
         await page.locator('#username').fill(savedAdmin.username);
         await page.locator('#password').fill(savedAdmin.password);
         await page.locator('button[type="submit"]:has-text("登录")').click();
-
-        // 等待页面完全加载
+        
+        // 等待登录请求完成
         await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(2000);
         
-        // 检查登录是否成功
-        alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 10000);
+        // 通过 API 验证登录状态
+        const loginStatus = await checkLoginStatus(page);
         
-        // 如果登录成功，直接使用
-        if (alreadyLoggedIn) {
+        if (loginStatus && loginStatus.isLoggedIn) {
+          // 登录成功，等待 Alpine.js 渲染
+          await page.waitForTimeout(500);
+          
+          // 如果是管理员，导航到管理后台
+          if (loginStatus.isAdmin) {
+            await page.goto('/#admin');
+            await waitForPageReady(page);
+          }
+          
           await use(page);
           return;
         }
         
-        // 登录失败，继续创建新用户
-        const errorMsg = await page.locator('.error').textContent({ timeout: 1000 }).catch(() => '');
-        console.log(`Login failed for ${savedAdmin.username}: ${errorMsg}`);
+        // 登录失败，清除 cookies 继续创建新用户
+        await context.clearCookies();
+        console.log(`Login failed for ${savedAdmin.username}, creating new admin user`);
+      } catch (e) {
+        console.log(`Login error: ${e}, creating new admin user`);
+        await context.clearCookies();
       }
     }
 
-    // 创建新的管理员用户（清空数据库后的第一个用户自动成为管理员）
+    // 创建新的管理员用户（第一个用户自动成为管理员）
     const username = generateUsername();
     const password = STRONG_PASSWORD;
     const email = generateEmail(username);
-    
-    // 清除所有 cookies 确保未认证状态
-    const browserContext = page.context();
-    await browserContext.clearCookies();
     
     // 导航到注册页面
     await page.goto('/#register');
@@ -373,18 +379,21 @@ export const test = base.extend<E2EFixtures>({
     await page.locator('#password').fill(password);
     await page.locator('button[type="submit"]:has-text("登录")').click();
     
-    // 等待页面完全加载
+    // 等待登录请求完成
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
     
-    // 检查登录是否成功 - 使用更长的超时
-    alreadyLoggedIn = await waitForVisible(page, 'h1:has-text("管理后台"), h1:has-text("用户设置")', 10000);
+    // 通过 API 验证登录状态
+    const loginStatus = await checkLoginStatus(page);
     
-    if (!alreadyLoggedIn) {
-      // 如果还是失败，抛出错误
+    if (!loginStatus || !loginStatus.isLoggedIn) {
       const errorMsg = await page.locator('.error').textContent({ timeout: 1000 }).catch(() => '');
       throw new Error(`Failed to authenticate user: ${errorMsg}`);
     }
+    
+    // 导航到管理后台
+    await page.goto('/#admin');
+    await waitForPageReady(page);
     
     // 保存管理员凭据
     saveAdmin(username, password, email);
