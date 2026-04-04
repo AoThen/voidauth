@@ -194,9 +194,22 @@ func (h *UserHandler) GetSessions(c *gin.Context) {
 
 // TerminateSession 终止指定 Session
 func (h *UserHandler) TerminateSession(c *gin.Context) {
+	userID, _ := c.Get("userID")
 	sessionID := c.Param("id")
 
-	err := h.userService.TerminateSession(c.Request.Context(), sessionID)
+	// 验证会话属于当前用户
+	session, err := h.sessionRepo.FindByID(c.Request.Context(), sessionID)
+	if err != nil || session == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "会话不存在"})
+		return
+	}
+
+	if session.UserID != userID.(string) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权终止此会话"})
+		return
+	}
+
+	err = h.userService.TerminateSession(c.Request.Context(), sessionID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止会话失败"})
 		return
