@@ -231,57 +231,70 @@ test.describe('重复创建资源', () => {
   test('重复客户端 ID 创建失败', async ({ authenticatedPage: page, request }) => {
     await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 5000 });
 
-    const cookies = await page.context().cookies();
-    const sessionCookie = cookies.find(c => c.name === 'session');
-    const csrfCookie = cookies.find(c => c.name === 'csrf_token');
-
-    if (!sessionCookie || !csrfCookie) {
-      test.skip();
-      return;
-    }
-
     const clientId = `dup-client-${Date.now()}`;
 
-    // 第一次创建
-    const firstResponse = await request.post('/api/admin/clients', {
-      headers: {
-        'Cookie': `session=${sessionCookie.value}; csrf_token=${encodeURIComponent(csrfCookie.value)}`,
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': decodeURIComponent(csrfCookie.value),
-      },
-      data: {
-        id: clientId,
-        redirectUris: ['http://localhost:3000/callback'],
-        scopes: ['openid'],
-      },
-    });
+    // 第一次创建 - 使用 page.evaluate 确保使用正确的 session
+    const firstResult = await page.evaluate(async (id) => {
+      const csrfToken = decodeURIComponent(
+        document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='))?.split('=')[1] || ''
+      );
+      
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({
+          id: id,
+          redirectUris: ['http://localhost:3000/callback'],
+          scopes: ['openid'],
+        }),
+      });
+      
+      return { status: res.status };
+    }, clientId);
 
-    expect([200, 201]).toContain(firstResponse.status());
+    expect([200, 201]).toContain(firstResult.status);
 
     // 尝试重复创建
-    const secondResponse = await request.post('/api/admin/clients', {
-      headers: {
-        'Cookie': `session=${sessionCookie.value}; csrf_token=${encodeURIComponent(csrfCookie.value)}`,
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': decodeURIComponent(csrfCookie.value),
-      },
-      data: {
-        id: clientId,
-        redirectUris: ['http://localhost:3000/callback'],
-        scopes: ['openid'],
-      },
-    });
+    const secondResult = await page.evaluate(async (id) => {
+      const csrfToken = decodeURIComponent(
+        document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='))?.split('=')[1] || ''
+      );
+      
+      const res = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({
+          id: id,
+          redirectUris: ['http://localhost:3000/callback'],
+          scopes: ['openid'],
+        }),
+      });
+      
+      return { status: res.status };
+    }, clientId);
 
     // 应该拒绝重复 ID
-    expect([400, 409, 500]).toContain(secondResponse.status());
+    expect([400, 409, 500]).toContain(secondResult.status);
 
     // 清理
-    await request.delete(`/api/admin/clients/${clientId}`, {
-      headers: {
-        'Cookie': `session=${sessionCookie.value}; csrf_token=${encodeURIComponent(csrfCookie.value)}`,
-        'X-CSRF-Token': decodeURIComponent(csrfCookie.value),
-      },
-    });
+    await page.evaluate(async (id) => {
+      const csrfToken = decodeURIComponent(
+        document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='))?.split('=')[1] || ''
+      );
+      
+      await fetch(`/api/admin/clients/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+        },
+      });
+    }, clientId);
   });
 });
 

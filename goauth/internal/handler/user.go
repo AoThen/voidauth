@@ -182,6 +182,7 @@ func (h *UserHandler) RemoveTotp(c *gin.Context) {
 // GetSessions 获取所有 Session
 func (h *UserHandler) GetSessions(c *gin.Context) {
 	userID, _ := c.Get("userID")
+	currentSessionID, _ := c.Get("sessionID")
 
 	sessions, err := h.userService.GetUserSessions(c.Request.Context(), userID.(string))
 	if err != nil {
@@ -189,7 +190,33 @@ func (h *UserHandler) GetSessions(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, sessions)
+	// 添加 current 标记
+	type SessionResponse struct {
+		ID           string `json:"id"`
+		UserID       string `json:"userId"`
+		AMR          string `json:"amr"`
+		TotpAttempts int    `json:"totpAttempts"`
+		RememberMe   bool   `json:"rememberMe"`
+		Current      bool   `json:"current"`
+		ExpiresAt    string `json:"expiresAt"`
+		CreatedAt    string `json:"createdAt"`
+	}
+
+	response := make([]SessionResponse, len(sessions))
+	for i, s := range sessions {
+		response[i] = SessionResponse{
+			ID:           s.ID,
+			UserID:       s.UserID,
+			AMR:          s.AMR,
+			TotpAttempts: s.TotpAttempts,
+			RememberMe:   s.RememberMe,
+			Current:      s.ID == currentSessionID,
+			ExpiresAt:    s.ExpiresAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:    s.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // TerminateSession 终止指定 Session

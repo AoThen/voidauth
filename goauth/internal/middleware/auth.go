@@ -77,6 +77,9 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("username", user.Username)
 		c.Set("isAdmin", user.IsAdmin)
 		c.Set("user", user)
+		if session != nil {
+			c.Set("sessionID", session.ID)
+		}
 
 		c.Next()
 	}
