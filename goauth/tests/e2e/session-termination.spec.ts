@@ -353,6 +353,7 @@ test.describe('会话并发管理', () => {
       });
 
       // 应该只有一个会话
+      expect(Array.isArray(newSessionsResponse)).toBeTruthy();
       expect(newSessionsResponse.length).toBe(1);
       expect(newSessionsResponse[0].current).toBeTruthy();
     } finally {

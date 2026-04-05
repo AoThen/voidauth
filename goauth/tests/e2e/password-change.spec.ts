@@ -187,7 +187,7 @@ test.describe('密码修改流程', () => {
     const newPassword = 'NewStrongPassword456!';
 
     // 修改密码
-    const result = await page.evaluate(async (oldPassword: string, newPwd: string) => {
+    const result = await page.evaluate(async ({ oldPwd, newPwd }) => {
       const csrfToken = decodeURIComponent(
         document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='))?.split('=')[1] || ''
       );
@@ -199,13 +199,13 @@ test.describe('密码修改流程', () => {
           'X-CSRF-Token': csrfToken,
         },
         body: JSON.stringify({
-          oldPassword,
+          oldPassword: oldPwd,
           newPassword: newPwd,
         }),
       });
       
       return { status: res.status };
-    }, testUser.password, newPassword);
+    }, { oldPwd: testUser.password, newPwd: newPassword });
 
     expect([200, 204]).toContain(result.status);
 

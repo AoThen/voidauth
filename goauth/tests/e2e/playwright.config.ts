@@ -88,7 +88,7 @@ export default defineConfig({
     command: 'bash -c "cd /home/git/working/Goauth/goauth && rm -rf data/goauth.db* && APP_SECURITY_LOGINMAXATTEMPTS=1000 APP_SERVER_RATELIMIT=0 APP_SECURITY_AUTOAPPROVEUSERS=true ./bin/goauth serve"',
     port: 3000,
     timeout: 30000,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     stdout: 'ignore',
     stderr: 'pipe',
   },

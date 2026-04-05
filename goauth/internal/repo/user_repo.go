@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -12,6 +13,7 @@ import (
 )
 
 var ErrUserNotFound = errors.New("user not found")
+var ErrUserExists = errors.New("user already exists")
 
 type UserRepo struct {
 	db *sqlx.DB
@@ -35,7 +37,14 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, user.ID, user.Email, user.Username, user.Name, user.PasswordHash, user.IsAdmin, user.EmailVerified, user.Approved, user.MFARequired, user.Disabled, now, now)
 
-	return err
+	if err != nil {
+		// SQLite UNIQUE 约束错误
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return ErrUserExists
+		}
+		return err
+	}
+	return nil
 }
 
 // FindByID 根据 ID 查找用户

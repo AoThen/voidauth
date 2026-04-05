@@ -10,6 +10,7 @@ import (
 
 	"goauth/internal/config"
 	"goauth/internal/middleware"
+	"goauth/internal/repo"
 	"goauth/internal/service"
 	"goauth/internal/util"
 )
@@ -213,6 +214,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "密码强度不足"})
 		case service.ErrUsernameEmpty:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "用户名不能为空"})
+		case repo.ErrUserExists:
+			c.JSON(http.StatusConflict, gin.H{"error": "用户名已存在"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "注册失败"})
 		}
