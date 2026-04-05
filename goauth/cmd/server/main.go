@@ -445,6 +445,7 @@ func setupRouter(
 				"/api/auth/login",
 				"/api/auth/register",
 				"/api/auth/logout",
+				"/api/public/password-strength", // 公开API，不需要CSRF保护
 			},
 		}))
 
