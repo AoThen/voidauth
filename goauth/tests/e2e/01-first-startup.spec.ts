@@ -1,10 +1,12 @@
-import { test, expect, STRONG_PASSWORD, saveAdmin, getSavedAdmin } from './fixture';
+import { test, expect, STRONG_PASSWORD, saveAdmin, getSavedAdmin, FIXED_ADMIN_USERNAME, FIXED_ADMIN_PASSWORD, FIXED_ADMIN_EMAIL } from './fixture';
 
 /**
  * 首次启动流程测试
  * 
  * 测试注册、登录流程。
  * 注意：goauth 注册成功后需要重新登录。
+ * 
+ * 关键：使用固定的管理员凭据，确保后续测试可以重用
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -23,7 +25,7 @@ test.describe('首次启动流程', () => {
     await expect(registerLink).toBeVisible();
   });
 
-  test('2. 第一个用户注册成功并登录', async ({ page }) => {
+  test('2. 第一个用户注册成功并登录（使用固定管理员）', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -35,13 +37,13 @@ test.describe('首次启动流程', () => {
     // 确认在注册页面
     await expect(page.locator('h1:has-text("注册")')).toBeVisible({ timeout: 5000 });
     
-    // 填写注册表单
-    const username = `firstuser_${Date.now()}`;
-    const email = `${username}@test.local`;
+    // 使用固定的管理员凭据
+    const username = FIXED_ADMIN_USERNAME;
+    const email = FIXED_ADMIN_EMAIL;
     await page.locator('#reg-username').fill(username);
     await page.locator('#reg-email').fill(email);
-    await page.locator('#reg-password').fill(STRONG_PASSWORD);
-    await page.locator('#reg-confirm').fill(STRONG_PASSWORD);
+    await page.locator('#reg-password').fill(FIXED_ADMIN_PASSWORD);
+    await page.locator('#reg-confirm').fill(FIXED_ADMIN_PASSWORD);
     
     // 提交注册
     await page.locator('button:has-text("注册")').click();
@@ -54,7 +56,7 @@ test.describe('首次启动流程', () => {
     
     // 第一个用户自动成为管理员，登录
     await page.locator('#username').fill(username);
-    await page.locator('#password').fill(STRONG_PASSWORD);
+    await page.locator('#password').fill(FIXED_ADMIN_PASSWORD);
     await page.locator('button[type="submit"]:has-text("登录")').click();
     
     // 等待登录成功
@@ -64,7 +66,7 @@ test.describe('首次启动流程', () => {
     await expect(page.locator('h1:has-text("管理后台")')).toBeVisible({ timeout: 10000 });
     
     // 保存管理员凭据供后续测试使用
-    saveAdmin(username, STRONG_PASSWORD, email);
+    saveAdmin(username, FIXED_ADMIN_PASSWORD, email);
   });
 
   test('3. 新用户注册后可以登录（测试环境自动批准）', async ({ page }) => {
