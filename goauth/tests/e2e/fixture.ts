@@ -507,16 +507,16 @@ export const test = base.extend<E2EFixtures>({
     }
 
     if (!usedSavedAdmin) {
-      // 清除状态文件和 cookies
-      clearSavedAdmin();
+      // 不要立即清理状态文件
+      // 先检查数据库状态
       await context.clearCookies();
       
-      // 检查数据库中是否已有用户（通过检查登录页面是否存在）
+      // 检查数据库中是否已有用户
       await page.goto('/');
       await waitForPageReady(page);
       
       // 尝试检查是否是首次启动（没有用户）
-      const isFirstStartup = await page.evaluate(async () => {
+      const serverStatus = await page.evaluate(async () => {
         try {
           // 检查是否显示"首次启动"提示或注册链接
           const registerLink = document.querySelector('a[href="#register"]');
@@ -524,12 +524,21 @@ export const test = base.extend<E2EFixtures>({
                                 document.body.textContent?.includes('首次');
           return {
             hasRegisterLink: !!registerLink,
-            hasFirstStartMsg: firstStartMsg
+            hasFirstStartMsg: firstStartMsg,
+            hasLoginForm: !!document.querySelector('#username'),
           };
         } catch {
-          return { hasRegisterLink: false, hasFirstStartMsg: false };
+          return { hasRegisterLink: false, hasFirstStartMsg: false, hasLoginForm: false };
         }
       });
+      
+      // 如果数据库有用户但无法登录，说明测试环境有问题
+      if (!serverStatus.hasFirstStartMsg && serverStatus.hasLoginForm) {
+        console.log('Database has existing users but no valid admin credentials');
+        console.log('This may indicate a test environment issue');
+        test.skip();
+        return;
+      }
       
       // 如果有注册链接，说明可能是首次启动或允许注册
       // 创建新的管理员用户（第一个用户自动成为管理员）
@@ -594,26 +603,16 @@ export const test = base.extend<E2EFixtures>({
       // 检查是否是管理员
       if (!loginStatus.isAdmin) {
         // 不是管理员，说明数据库中已有其他用户
-        // 尝试获取已有管理员的凭据（通过 CLI 创建的管理员密码是固定的）
-        console.log('Created user is not admin - trying to find existing admin...');
+        // 尝试使用已有的第一个用户（管理员）登录
+        console.log('Created user is not admin - database has existing users');
         
         // 登出当前用户
         await logoutUser(page);
         
-        // 尝试获取数据库中的管理员列表
-        const adminInfo = await page.evaluate(async () => {
-          try {
-            // 尝试使用 CLI 创建的管理员（如果存在）
-            // 常见的 CLI 管理员用户名
-            const res = await fetch('/api/public/config');
-            return { hasConfig: res.ok };
-          } catch {
-            return { hasConfig: false };
-          }
-        });
-        
-        // 如果无法获取管理员，跳过测试
-        console.log('Cannot find admin credentials - skipping test');
+        // 尝试获取数据库中的第一个用户（管理员）
+        // 由于我们不知道第一个用户的密码，跳过此测试
+        // 但不清理状态文件，让下一个测试有机会尝试
+        console.log('Cannot determine admin credentials - skipping test');
         test.skip();
         return;
       }
