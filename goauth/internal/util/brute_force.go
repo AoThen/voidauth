@@ -87,3 +87,46 @@ func (p *BruteForceProtector) GetRemainingAttempts(ctx context.Context, ip strin
 	}
 	return remaining, nil
 }
+
+// RecordTotpAttempt 记录 TOTP 验证尝试
+// 使用 "totp:{userID}" 作为 username 存储，与普通登录尝试区分
+func (p *BruteForceProtector) RecordTotpAttempt(ctx context.Context, userID, ip string, success bool) error {
+	_, err := p.db.ExecContext(ctx, `
+		INSERT INTO login_attempts (id, username, ip, success, createdAt)
+		VALUES (?, ?, ?, ?, ?)
+	`, uuid.NewString(), "totp:"+userID, ip, success, time.Now())
+	return err
+}
+
+// GetTotpAttempts 获取 TOTP 失败尝试次数
+func (p *BruteForceProtector) GetTotpAttempts(ctx context.Context, userID, ip string) (int, error) {
+	blockTime := time.Now().Add(-time.Duration(p.blockMinutes) * time.Minute)
+
+	var count int
+	err := p.db.GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM login_attempts
+		WHERE username = ? AND ip = ? AND success = 0 AND createdAt > ?
+	`, "totp:"+userID, ip, blockTime)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return count, nil
+}
+
+// IsTotpBlocked 检查 TOTP 是否被封锁
+func (p *BruteForceProtector) IsTotpBlocked(ctx context.Context, userID, ip string) (bool, error) {
+	count, err := p.GetTotpAttempts(ctx, userID, ip)
+	if err != nil {
+		return false, err
+	}
+	return count >= p.maxAttempts, nil
+}
+
+// ClearTotpAttempts 清除 TOTP 尝试记录
+func (p *BruteForceProtector) ClearTotpAttempts(ctx context.Context, userID string) error {
+	_, err := p.db.ExecContext(ctx, `DELETE FROM login_attempts WHERE username = ?`, "totp:"+userID)
+	return err
+}

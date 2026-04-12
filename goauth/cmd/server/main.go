@@ -141,7 +141,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	clientRepo := repo.NewClientRepo(database.DB)
 
 	// Setup OIDC
-	storage, err := oidc.NewStorage(userRepo, groupRepo, keyRepo, oidcRepo, clientRepo, cfg)
+	storage, err := oidc.NewStorage(userRepo, groupRepo, keyRepo, oidcRepo, clientRepo, sessionRepo, cfg)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create OIDC storage")
 	}
@@ -167,7 +167,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	userHandler := handler.NewUserHandler(userService, totpService, sessionRepo, cfg)
 	adminHandler := handler.NewAdminHandler(userService, groupService, auditService, invitationService, totpService, userRepo, groupRepo, clientRepo, invitationRepo, proxyAuthRepo)
 	oidcHandler := handler.NewOIDCHandler(provider)
-	proxyAuthHandler := handler.NewProxyAuthHandler(authService, proxyAuthRepo, groupRepo)
+	proxyAuthHandler := handler.NewProxyAuthHandler(authService, proxyAuthRepo, groupRepo, sessionRepo)
 
 	// Setup middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService, cfg)

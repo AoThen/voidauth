@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -10,11 +11,23 @@ import (
 	"goauth/internal/service"
 )
 
+// sanitizeHeader 清理 header 值中的换行符，防止 HTTP Header 注入攻击
+// 攻击者可能通过在用户名中注入 \r\n 来添加额外的 HTTP header
+func sanitizeHeader(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\r' || r == '\n' {
+			return -1 // 删除字符
+		}
+		return r
+	}, s)
+}
+
 // ProxyAuthHandler ProxyAuth Handler
 type ProxyAuthHandler struct {
 	authService   *service.AuthService
 	proxyAuthRepo *repo.ProxyAuthRepo
 	groupRepo     *repo.GroupRepo
+	sessionRepo   *repo.SessionRepo
 }
 
 // NewProxyAuthHandler 创建 ProxyAuth Handler
@@ -22,11 +35,13 @@ func NewProxyAuthHandler(
 	authService *service.AuthService,
 	proxyAuthRepo *repo.ProxyAuthRepo,
 	groupRepo *repo.GroupRepo,
+	sessionRepo *repo.SessionRepo,
 ) *ProxyAuthHandler {
 	return &ProxyAuthHandler{
 		authService:   authService,
 		proxyAuthRepo: proxyAuthRepo,
 		groupRepo:     groupRepo,
+		sessionRepo:   sessionRepo,
 	}
 }
 
@@ -76,10 +91,25 @@ func (h *ProxyAuthHandler) ForwardAuth(c *gin.Context) {
 	proxyAuth, err := h.proxyAuthRepo.FindByDomain(c.Request.Context(), domain)
 	if err != nil {
 		// 没有配置则允许所有已登录用户
-		c.Header("X-User-Id", user.ID)
-		c.Header("X-User-Name", user.Username)
+		c.Header("X-User-Id", sanitizeHeader(user.ID))
+		c.Header("X-User-Name", sanitizeHeader(user.Username))
+		if user.Email != nil {
+			c.Header("X-User-Email", sanitizeHeader(*user.Email))
+		}
 		c.Status(http.StatusOK)
 		return
+	}
+
+	// 检查最大会话时长
+	if proxyAuth.MaxSessionLength != nil && *proxyAuth.MaxSessionLength > 0 && h.sessionRepo != nil {
+		session, err := h.sessionRepo.FindByToken(c.Request.Context(), token)
+		if err == nil {
+			maxDuration := time.Duration(*proxyAuth.MaxSessionLength) * time.Minute
+			if time.Since(session.CreatedAt.Time) > maxDuration {
+				c.Status(http.StatusUnauthorized)
+				return
+			}
+		}
 	}
 
 	// 检查 MFA 要求
@@ -118,10 +148,10 @@ func (h *ProxyAuthHandler) ForwardAuth(c *gin.Context) {
 	}
 
 	// 返回用户信息给反向代理
-	c.Header("X-User-Id", user.ID)
-	c.Header("X-User-Name", user.Username)
+	c.Header("X-User-Id", sanitizeHeader(user.ID))
+	c.Header("X-User-Name", sanitizeHeader(user.Username))
 	if user.Email != nil {
-		c.Header("X-User-Email", *user.Email)
+		c.Header("X-User-Email", sanitizeHeader(*user.Email))
 	}
 	c.Status(http.StatusOK)
 }
@@ -161,7 +191,10 @@ func (h *ProxyAuthHandler) AuthRequest(c *gin.Context) {
 	}
 
 	// 设置响应头供 Nginx 使用
-	c.Header("X-User-Id", user.ID)
-	c.Header("X-User-Name", user.Username)
+	c.Header("X-User-Id", sanitizeHeader(user.ID))
+	c.Header("X-User-Name", sanitizeHeader(user.Username))
+	if user.Email != nil {
+		c.Header("X-User-Email", sanitizeHeader(*user.Email))
+	}
 	c.Status(http.StatusOK)
 }

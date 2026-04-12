@@ -32,26 +32,28 @@ var (
 
 // Storage 实现 op.Storage 接口
 type Storage struct {
-	oidcRepo   *repo.OIDCRepo
-	userRepo   *repo.UserRepo
-	groupRepo  *repo.GroupRepo
-	keyRepo    *repo.KeyRepo
-	clientRepo *repo.ClientRepo // 添加 clientRepo 以从 clients 表读取
-	cfg        *config.Config
-	key        *rsa.PrivateKey
-	keyOnce    sync.Once  // 确保 initSigningKey 只执行一次
-	keyInitErr error      // 存储初始化错误
+	oidcRepo    *repo.OIDCRepo
+	userRepo    *repo.UserRepo
+	groupRepo   *repo.GroupRepo
+	keyRepo     *repo.KeyRepo
+	clientRepo  *repo.ClientRepo // 添加 clientRepo 以从 clients 表读取
+	sessionRepo *repo.SessionRepo // 添加 sessionRepo 用于 SSO 登出
+	cfg         *config.Config
+	key         *rsa.PrivateKey
+	keyOnce     sync.Once  // 确保 initSigningKey 只执行一次
+	keyInitErr  error      // 存储初始化错误
 }
 
 // NewStorage 创建 Storage
-func NewStorage(userRepo *repo.UserRepo, groupRepo *repo.GroupRepo, keyRepo *repo.KeyRepo, oidcRepo *repo.OIDCRepo, clientRepo *repo.ClientRepo, cfg *config.Config) (*Storage, error) {
+func NewStorage(userRepo *repo.UserRepo, groupRepo *repo.GroupRepo, keyRepo *repo.KeyRepo, oidcRepo *repo.OIDCRepo, clientRepo *repo.ClientRepo, sessionRepo *repo.SessionRepo, cfg *config.Config) (*Storage, error) {
 	s := &Storage{
-		oidcRepo:   oidcRepo,
-		userRepo:   userRepo,
-		groupRepo:  groupRepo,
-		keyRepo:    keyRepo,
-		clientRepo: clientRepo,
-		cfg:        cfg,
+		oidcRepo:    oidcRepo,
+		userRepo:    userRepo,
+		groupRepo:   groupRepo,
+		keyRepo:     keyRepo,
+		clientRepo:  clientRepo,
+		sessionRepo: sessionRepo,
+		cfg:         cfg,
 	}
 
 	// 初始化签名密钥（使用 sync.Once 保护）
@@ -527,10 +529,14 @@ func (s *Storage) TerminateSession(ctx context.Context, userID string, clientID 
 		return nil
 	}
 
-	// 删除用户的所有 session
-	// 注意：这里我们通过 oidcRepo 操作，因为 Storage 没有直接引用 sessionRepo
-	// 但实际上 session 存储在 sessions 表中，而不是 oidc_payloads
-	// 这里我们主要清理 OIDC 相关的 tokens
+	// 删除用户的所有 session（实现完整的 SSO 登出）
+	if s.sessionRepo != nil {
+		if err := s.sessionRepo.DeleteByUserID(ctx, userID); err != nil {
+			log.Error().Err(err).Str("userID", userID).Msg("Failed to delete user sessions")
+		}
+	}
+
+	// 清理 OIDC 相关的 tokens
 	tokens, err := s.oidcRepo.FindByAccountID(ctx, userID)
 	if err != nil {
 		log.Debug().Err(err).Str("userID", userID).Msg("Failed to find tokens for termination")

@@ -273,21 +273,30 @@ func (s *AuthService) TotpVerify(ctx context.Context, req *TotpVerifyRequest, ip
 		return nil, errors.New("会话已过期")
 	}
 
-	// 检查 TOTP 尝试次数
-	if session.TotpAttempts >= s.cfg.Security.TotpMaxAttempts {
+	// 检查 TOTP 是否被封锁（使用数据库存储，防止通过删除 cookie 绕过）
+	blocked, err := s.protector.IsTotpBlocked(ctx, session.UserID, ip)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to check TOTP block status")
+	}
+	if blocked {
 		_ = s.sessionRepo.Delete(ctx, session.ID)
-		log.Warn().Str("userID", session.UserID).Int("attempts", session.TotpAttempts).Msg("TOTP attempts exceeded")
+		log.Warn().Str("userID", session.UserID).Msg("TOTP blocked due to too many attempts")
 		return nil, errors.New("验证码尝试次数过多，请重新登录")
 	}
+
+	// 获取当前失败次数用于显示剩余次数
+	currentAttempts, _ := s.protector.GetTotpAttempts(ctx, session.UserID, ip)
 
 	// 验证 TOTP
 	valid, err := s.totpService.Verify(ctx, session.UserID, req.Code)
 	if err != nil || !valid {
 		log.Warn().Err(err).Str("userID", session.UserID).Bool("valid", valid).Msg("TOTP verification failed")
 
-		// 增加尝试计数
-		attempts, _ := s.sessionRepo.IncrementTotpAttempts(ctx, session.ID)
-		remaining := s.cfg.Security.TotpMaxAttempts - attempts
+		// 记录失败到数据库
+		_ = s.protector.RecordTotpAttempt(ctx, session.UserID, ip, false)
+
+		// 计算剩余次数
+		remaining := s.cfg.Security.TotpMaxAttempts - currentAttempts - 1
 		if remaining <= 0 {
 			_ = s.sessionRepo.Delete(ctx, session.ID)
 			return nil, errors.New("验证码尝试次数过多，请重新登录")
@@ -295,6 +304,9 @@ func (s *AuthService) TotpVerify(ctx context.Context, req *TotpVerifyRequest, ip
 
 		return nil, fmt.Errorf("%w (剩余 %d 次尝试)", ErrInvalidTotpCode, remaining)
 	}
+
+	// 验证成功，清除 TOTP 尝试记录
+	_ = s.protector.RecordTotpAttempt(ctx, session.UserID, ip, true)
 
 	// 获取用户
 	user, err := s.userRepo.FindByID(ctx, session.UserID)
@@ -429,6 +441,11 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Regi
 	// 验证用户名不为空
 	if req.Username == "" {
 		return nil, ErrUsernameEmpty
+	}
+
+	// 验证邮箱格式（如果提供）
+	if req.Email != nil && *req.Email != "" && !util.IsValidEmail(*req.Email) {
+		return nil, util.ErrEmailInvalid
 	}
 
 	// 检查密码强度

@@ -391,7 +391,7 @@ func createTestStorage(t *testing.T, server *helper.TestServer) *oidc.Storage {
 	keyRepo := repo.NewKeyRepo(server.DB)
 	oidcRepo := repo.NewOIDCRepo(server.DB)
 
-	storage, err := oidc.NewStorage(server.UserRepo, server.GroupRepo, keyRepo, oidcRepo, server.ClientRepo, server.Cfg)
+	storage, err := oidc.NewStorage(server.UserRepo, server.GroupRepo, keyRepo, oidcRepo, server.ClientRepo, server.SessionRepo, server.Cfg)
 	require.NoError(t, err, "Failed to create OIDC storage")
 
 	return storage

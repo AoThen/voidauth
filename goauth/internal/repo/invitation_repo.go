@@ -72,11 +72,10 @@ func (r *InvitationRepo) FindByID(ctx context.Context, id string) (*model.Invita
 }
 
 // FindByChallenge 根据 challenge 查找邀请（用于验证邀请链接）
+// 注意：此方法返回邀请无论是否过期，过期检查由服务层负责
 func (r *InvitationRepo) FindByChallenge(ctx context.Context, challenge string) (*model.Invitation, error) {
 	var invitation model.Invitation
-	err := r.db.GetContext(ctx, &invitation, `
-		SELECT * FROM invitations WHERE challenge = ? AND expiresAt > ?
-	`, challenge, time.Now())
+	err := r.db.GetContext(ctx, &invitation, `SELECT * FROM invitations WHERE challenge = ?`, challenge)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrInvitationNotFound

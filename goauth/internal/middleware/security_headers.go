@@ -23,10 +23,10 @@ func SecurityHeaders() gin.HandlerFunc {
 		// 权限策略（替代 Feature-Policy）
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
-		// Content-Security-Policy 根据环境配置
-		// 注意：CSP 配置较复杂，需要根据实际前端资源调整
-		// 这里使用相对宽松的策略，生产环境应更严格
-		// c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		// Content-Security-Policy
+		// 注意：由于使用 Alpine.js 内联脚本和内联样式，需要 'unsafe-inline'
+		// 生产环境可考虑使用 nonce 或 hash 替代
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'")
 
 		c.Next()
 	}

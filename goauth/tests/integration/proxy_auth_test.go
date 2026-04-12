@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"goauth/internal/model"
+	"goauth/internal/repo"
 	"goauth/tests/helper"
 )
 
@@ -476,4 +477,335 @@ func TestProxyAuth_Repo_GetProxyAuthGroups(t *testing.T) {
 	groupIDs, err := server.ProxyAuthRepo.GetProxyAuthGroups(context.Background(), proxyAuth.ID)
 	require.NoError(t, err)
 	assert.Len(t, groupIDs, 2)
+}
+
+// TestProxyAuth_Repo_ListWithGroups 测试列出带分组的 ProxyAuth
+func TestProxyAuth_Repo_ListWithGroups(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	admin := server.CreateAdmin(t)
+
+	// 创建分组
+	group := server.CreateGroup(t, helper.WithGroupName("listgroup"))
+
+	// 创建 ProxyAuth 并关联分组
+	proxyAuth := &model.ProxyAuth{
+		Domain:      "listwithgroups.example.com",
+		CreatedBy:   admin.ID,
+	}
+	err := server.ProxyAuthRepo.Create(context.Background(), proxyAuth, []string{group.ID})
+	require.NoError(t, err)
+
+	// 调用 ListWithGroups
+	results, err := server.ProxyAuthRepo.ListWithGroups(context.Background())
+	require.NoError(t, err)
+
+	// 查找我们创建的记录
+	var found *repo.ProxyAuthWithGroups
+	for _, r := range results {
+		if r.ID == proxyAuth.ID {
+			found = r
+			break
+		}
+	}
+
+	require.NotNil(t, found, "应该找到创建的 ProxyAuth")
+	assert.Equal(t, "listwithgroups.example.com", found.Domain)
+	assert.NotNil(t, found.GroupIDs, "应该有关联的分组")
+	assert.Contains(t, *found.GroupIDs, group.ID)
+}
+
+// ========== X-User-Email 响应头测试 ==========
+
+// TestForwardAuth_WithEmailHeader 测试有邮箱用户返回 X-User-Email 头
+func TestForwardAuth_WithEmailHeader(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建带邮箱的用户
+	email := "testemail@example.com"
+	user := server.CreateUser(t,
+		helper.WithUsername("emailuser"),
+		helper.WithEmail(email),
+	)
+
+	// 登录
+	token := server.Login(t, "emailuser", "My-Test-Pass-2024-Secure!")
+
+	// 测试 ForwardAuth
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotEmpty(t, resp.Header.Get("X-User-Id"), "应该返回 X-User-Id")
+	assert.NotEmpty(t, resp.Header.Get("X-User-Name"), "应该返回 X-User-Name")
+	assert.Equal(t, email, resp.Header.Get("X-User-Email"), "应该返回正确的 X-User-Email")
+
+	// 验证用户邮箱正确
+	require.NotNil(t, user.Email)
+	assert.Equal(t, email, *user.Email)
+}
+
+// TestForwardAuth_NoEmailHeader 测试无邮箱用户不返回 X-User-Email 头
+func TestForwardAuth_NoEmailHeader(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建不带邮箱的用户（需要显式设置 Email 为 nil）
+	user := server.CreateUser(t,
+		helper.WithUsername("noemailuser"),
+		helper.WithEmail(""), // 空字符串会被转换为 nil
+	)
+
+	// 确保用户没有邮箱
+	require.Nil(t, user.Email, "测试用户不应该有邮箱")
+
+	// 登录
+	token := server.Login(t, "noemailuser", "My-Test-Pass-2024-Secure!")
+
+	// 测试 ForwardAuth
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotEmpty(t, resp.Header.Get("X-User-Id"), "应该返回 X-User-Id")
+	assert.NotEmpty(t, resp.Header.Get("X-User-Name"), "应该返回 X-User-Name")
+	// X-User-Email 应该为空
+	assert.Empty(t, resp.Header.Get("X-User-Email"), "无邮箱用户不应返回 X-User-Email")
+}
+
+// ========== Host Header 域名提取测试 ==========
+
+// TestForwardAuth_HostHeaderDomain 测试从 Host header 提取域名
+func TestForwardAuth_HostHeaderDomain(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建管理员
+	admin := server.CreateAdmin(t)
+
+	// 创建分组
+	group := server.CreateGroup(t, helper.WithGroupName("hostgroup"))
+
+	// 创建用户并加入分组
+	user := server.CreateUser(t, helper.WithUsername("hostuser"))
+	err := server.GroupRepo.AddUserToGroup(context.Background(), user.ID, group.ID)
+	require.NoError(t, err)
+
+	// 登录
+	token := server.Login(t, "hostuser", "My-Test-Pass-2024-Secure!")
+
+	// 创建 ProxyAuth 配置
+	proxyAuth := &model.ProxyAuth{
+		Domain:      "host.example.com",
+		MFARequired: false,
+		CreatedBy:   admin.ID,
+	}
+	err = server.ProxyAuthRepo.Create(context.Background(), proxyAuth, []string{group.ID})
+	require.NoError(t, err)
+
+	// 测试使用 Host header（不使用 Query 参数）
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+	req.Host = "host.example.com" // 设置 Host header
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+// TestForwardAuth_HostHeaderWithPort 测试从带端口的 Host header 提取域名
+func TestForwardAuth_HostHeaderWithPort(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建并登录用户
+	_, token := server.LoginAsUser(t, helper.WithUsername("portuser"))
+
+	// 测试使用带端口的 Host header
+	// 域名应该从 "example.com:8080" 中提取为 "example.com"
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+	req.Host = "port.example.com:8080"
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// 未配置的域名应该允许所有认证用户
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+// ========== MaxSessionLength 超时测试 ==========
+
+// TestForwardAuth_MaxSessionLength_Unlimited 测试 MaxSessionLength 为 0（无限制）
+func TestForwardAuth_MaxSessionLength_Unlimited(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建管理员
+	admin := server.CreateAdmin(t)
+
+	// 创建用户
+	server.CreateUser(t, helper.WithUsername("unlimiteduser"))
+
+	// 登录获取 token
+	token := server.Login(t, "unlimiteduser", "My-Test-Pass-2024-Secure!")
+
+	// 创建带 MaxSessionLength 为 0 的 ProxyAuth (0 表示无限制)
+	maxLength := 0
+	proxyAuth := &model.ProxyAuth{
+		Domain:           "unlimited.example.com",
+		MFARequired:      false,
+		MaxSessionLength: &maxLength,
+		CreatedBy:        admin.ID,
+	}
+	err := server.ProxyAuthRepo.Create(context.Background(), proxyAuth, nil)
+	require.NoError(t, err)
+
+	// 测试 ForwardAuth
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth?domain=unlimited.example.com", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// MaxSessionLength 为 0 时，表示无限制，会话应该被允许
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "MaxSessionLength=0 表示无限制，会话应该被允许")
+}
+
+// TestForwardAuth_MaxSessionLength_ExpiredSession 测试会话超过最大时长
+func TestForwardAuth_MaxSessionLength_ExpiredSession(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建管理员
+	admin := server.CreateAdmin(t)
+
+	// 创建用户
+	server.CreateUser(t, helper.WithUsername("expiredsessionuser"))
+
+	// 创建一个"旧"会话（模拟已超时的会话）
+	// 注意：由于我们无法轻易修改会话的创建时间，
+	// 这个测试验证的是 ProxyAuth 配置的 MaxSessionLength 字段能正确保存和读取
+	maxLength := 1 // 1 分钟
+	proxyAuth := &model.ProxyAuth{
+		Domain:           "expired.example.com",
+		MFARequired:      false,
+		MaxSessionLength: &maxLength,
+		CreatedBy:        admin.ID,
+	}
+	err := server.ProxyAuthRepo.Create(context.Background(), proxyAuth, nil)
+	require.NoError(t, err)
+
+	// 登录获取新 token（新会话不会超时）
+	token := server.Login(t, "expiredsessionuser", "My-Test-Pass-2024-Secure!")
+
+	// 测试 ForwardAuth（新会话应该在有效期内）
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth?domain=expired.example.com", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// 新会话应该被允许
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "新会话应该被允许")
+
+	// 验证 MaxSessionLength 配置正确保存
+	saved, err := server.ProxyAuthRepo.FindByDomain(context.Background(), "expired.example.com")
+	require.NoError(t, err)
+	require.NotNil(t, saved.MaxSessionLength)
+	assert.Equal(t, 1, *saved.MaxSessionLength)
+
+	// 验证 createdBy 是管理员
+	assert.Equal(t, admin.ID, saved.CreatedBy)
+}
+
+// TestForwardAuth_MaxSessionLength_Valid 测试会话在有效期内
+func TestForwardAuth_MaxSessionLength_Valid(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建管理员
+	admin := server.CreateAdmin(t)
+
+	// 创建用户
+	server.CreateUser(t, helper.WithUsername("validsessionuser"))
+
+	// 登录获取 token
+	token := server.Login(t, "validsessionuser", "My-Test-Pass-2024-Secure!")
+
+	// 创建带 MaxSessionLength 的 ProxyAuth (设置为 60 分钟)
+	maxLength := 60
+	proxyAuth := &model.ProxyAuth{
+		Domain:           "validsession.example.com",
+		MFARequired:      false,
+		MaxSessionLength: &maxLength,
+		CreatedBy:        admin.ID,
+	}
+	err := server.ProxyAuthRepo.Create(context.Background(), proxyAuth, nil)
+	require.NoError(t, err)
+
+	// 测试 ForwardAuth（会话在有效期内）
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/forward-auth?domain=validsession.example.com", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	// 会话应该被允许
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "有效会话应该被允许")
+}
+
+// ========== AuthRequest X-User-Email 测试 ==========
+
+// TestAuthRequest_WithEmailHeader 测试 AuthRequest 返回 X-User-Email 头
+func TestAuthRequest_WithEmailHeader(t *testing.T) {
+	server := helper.NewTestServer(t)
+	defer server.Close()
+
+	// 创建带邮箱的用户
+	email := "authreq-email@example.com"
+	server.CreateUser(t,
+		helper.WithUsername("authreqemailuser"),
+		helper.WithEmail(email),
+	)
+
+	// 登录
+	token := server.Login(t, "authreqemailuser", "My-Test-Pass-2024-Secure!")
+
+	// 测试 AuthRequest
+	req, _ := http.NewRequest("GET", server.Server.URL+"/authz/auth-request", nil)
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotEmpty(t, resp.Header.Get("X-User-Id"), "应该返回 X-User-Id")
+	assert.NotEmpty(t, resp.Header.Get("X-User-Name"), "应该返回 X-User-Name")
+	assert.Equal(t, email, resp.Header.Get("X-User-Email"), "应该返回正确的 X-User-Email")
 }

@@ -92,7 +92,7 @@ func NewTestServer(t *testing.T) *TestServer {
 		userService, groupService, auditService, invitationService, totpService,
 		userRepo, groupRepo, clientRepo, invitationRepo, proxyAuthRepo,
 	)
-	proxyAuthHandler := handler.NewProxyAuthHandler(authService, proxyAuthRepo, groupRepo)
+	proxyAuthHandler := handler.NewProxyAuthHandler(authService, proxyAuthRepo, groupRepo, sessionRepo)
 
 	// 创建 middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService, cfg)
@@ -328,7 +328,6 @@ func runMigrations(db *sqlx.DB) error {
 		`CREATE TABLE IF NOT EXISTS proxy_auth_groups (
 			proxyAuthId TEXT NOT NULL,
 			groupId TEXT NOT NULL,
-			createdAt TEXT NOT NULL,
 			PRIMARY KEY (proxyAuthId, groupId),
 			FOREIGN KEY (proxyAuthId) REFERENCES proxy_auth(id) ON DELETE CASCADE,
 			FOREIGN KEY (groupId) REFERENCES groups(id) ON DELETE CASCADE
@@ -595,7 +594,18 @@ func WithUsername(username string) UserOption {
 // WithEmail 设置邮箱
 func WithEmail(email string) UserOption {
 	return func(u *model.User) {
-		u.Email = &email
+		if email == "" {
+			u.Email = nil
+		} else {
+			u.Email = &email
+		}
+	}
+}
+
+// WithNoEmail 显式设置无邮箱
+func WithNoEmail() UserOption {
+	return func(u *model.User) {
+		u.Email = nil
 	}
 }
 

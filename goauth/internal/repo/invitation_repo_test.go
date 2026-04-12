@@ -168,9 +168,11 @@ func TestInvitationRepo_FindByChallenge_Expired(t *testing.T) {
 	}
 	repo.Create(ctx, invitation, nil)
 
-	// 过期的邀请不应该被找到（FindByChallenge 只返回有效的）
-	_, err := repo.FindByChallenge(ctx, challenge)
-	assert.Equal(t, ErrInvitationNotFound, err)
+	// FindByChallenge 现在返回邀请无论是否过期，过期检查由服务层负责
+	found, err := repo.FindByChallenge(ctx, challenge)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+	assert.Equal(t, challenge, found.Challenge)
 }
 
 func TestInvitationRepo_FindByChallenge_NotFound(t *testing.T) {

@@ -122,7 +122,8 @@ func TestAuth_Register_DuplicateUsername(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	// 409 Conflict 更符合"用户名已存在"的语义
+	assert.Equal(t, http.StatusConflict, resp.StatusCode)
 }
 
 // TestAuth_Register_WeakPassword 测试弱密码注册失败

@@ -212,6 +212,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "密码太短"})
 		case util.ErrPasswordTooWeak:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "密码强度不足"})
+		case util.ErrEmailInvalid:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱格式无效"})
 		case service.ErrUsernameEmpty:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "用户名不能为空"})
 		case repo.ErrUserExists:
